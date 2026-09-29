@@ -415,6 +415,8 @@
   let selectedProfileAvatar = profileAvatars[0].src;
 
   const app = document.getElementById("app");
+  const welcomeScreen = document.getElementById("welcomeScreen");
+  const enterAppButton = document.getElementById("enterAppButton");
   const profilePill = document.getElementById("profilePill");
   const lightPill = document.getElementById("lightPill");
   const lumiPose = document.getElementById("lumiPose");
@@ -554,7 +556,7 @@
   }
 
   function animateLumi(pose = currentLumiPose, speaking = false) {
-    const panel = lumiPose.closest(".lumi-panel");
+    const panel = lumiPose.closest(".topbar-lumi");
     window.clearTimeout(lumiAnimationTimer);
     lumiPose.classList.remove("lumi-speaking", "lumi-idle", "lumi-pop");
     panel?.classList.remove("lumi-celebrating");
@@ -575,7 +577,7 @@
   }
 
   function settleLumiAnimation() {
-    const panel = lumiPose.closest(".lumi-panel");
+    const panel = lumiPose.closest(".topbar-lumi");
     if (panel?.classList.contains("lumi-celebrating")) return;
     lumiPose.classList.remove("lumi-speaking");
     lumiPose.classList.add("lumi-idle");
@@ -677,6 +679,23 @@
     window.setTimeout(() => toast.classList.remove("show"), 1600);
   }
 
+  function enterApplication() {
+    if (!welcomeScreen || welcomeScreen.classList.contains("leaving")) return;
+    enterAppButton.disabled = true;
+    screen = "profile";
+    activeLesson = null;
+    alphabetGoal = null;
+    render();
+    setLumi("Ahoj. Vyber si profil a môžeme začať.", "hovori");
+    welcomeScreen.classList.add("leaving");
+    document.body.classList.remove("welcome-active");
+    window.setTimeout(() => {
+      welcomeScreen.remove();
+      const firstProfile = document.querySelector("[data-profile]");
+      (firstProfile || app).focus({ preventScroll: true });
+    }, 600);
+  }
+
   function setScreen(next, lesson = null) {
     screen = next;
     activeLesson = lesson;
@@ -724,8 +743,7 @@
         <div class="hero-stage">
           <img src="${poses.hovori}" alt="Lumi máva" />
           <div class="hero-copy">
-            <h1>Lumi</h1>
-            <p>Ahoj. Kto sa dnes ide učiť?</p>
+            <h1>Vitaj Hugi</h1>
           </div>
         </div>
         <div class="profile-list card">
@@ -1823,6 +1841,15 @@
     state.volume = Number(volumeRange.value);
     saveState();
   });
+
+  if (welcomeScreen && enterAppButton) {
+    const welcomeDelay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 50 : 4500;
+    window.setTimeout(() => {
+      enterAppButton.disabled = false;
+      enterAppButton.focus({ preventScroll: true });
+    }, welcomeDelay);
+    enterAppButton.addEventListener("click", enterApplication);
+  }
 
   updateTopbar();
   animateLumi("hovori");

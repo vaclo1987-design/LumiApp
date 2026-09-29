@@ -10,7 +10,28 @@
     <title>Lumi - Svet plný zábavy</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body class="welcome-active">
+    <section class="welcome-screen" id="welcomeScreen" role="dialog" aria-modal="true" aria-label="Vitaj v aplikácii Lumi">
+      <div class="welcome-lights" aria-hidden="true">
+        <span style="--x:12%; --y:22%; --delay:0ms; --size:22px">✦</span>
+        <span style="--x:82%; --y:18%; --delay:220ms; --size:17px">✦</span>
+        <span style="--x:28%; --y:68%; --delay:440ms; --size:15px">✦</span>
+        <span style="--x:72%; --y:72%; --delay:660ms; --size:25px">✦</span>
+        <span style="--x:48%; --y:14%; --delay:880ms; --size:13px">✦</span>
+        <span style="--x:91%; --y:48%; --delay:1100ms; --size:18px">✦</span>
+        <span style="--x:8%; --y:54%; --delay:1320ms; --size:14px">✦</span>
+        <span style="--x:62%; --y:34%; --delay:1540ms; --size:12px">✦</span>
+        <span style="--x:36%; --y:36%; --delay:1760ms; --size:20px">✦</span>
+      </div>
+      <div class="welcome-content">
+        <div class="welcome-lumi-wrap" role="img" aria-label="Lumi sa teší a potom zamáva">
+          <img class="welcome-lumi welcome-lumi-start" src="assets/poses/lumi_tlieska_transparent.png" alt="" />
+          <img class="welcome-lumi welcome-lumi-end" src="assets/poses/lumi_hovori.png" alt="" />
+        </div>
+        <button class="welcome-enter" id="enterAppButton" type="button" disabled>VSTÚPIŤ</button>
+      </div>
+    </section>
+
     <div class="app-shell">
       <header class="topbar" aria-label="Horná lišta aplikácie">
         <button class="brand-button" id="homeButton" type="button" aria-label="Prejsť na výber profilu">
@@ -21,42 +42,44 @@
           </span>
         </button>
 
-        <div class="status-strip" aria-live="polite">
-          <span class="status-pill" id="profilePill">Profil</span>
-          <span class="status-pill light-pill" id="lightPill" aria-label="Nazbierané svetielka">0</span>
-        </div>
+        <section class="topbar-lumi" aria-live="polite">
+          <img id="lumiPose" src="assets/poses/lumi_hovori.png" alt="" />
+          <div class="topbar-lumi-content">
+            <p id="lumiLine">Ahoj. Vyber si profil a môžeme začať.</p>
+            <div class="voice-row">
+              <button class="soft-button" id="repeatButton" type="button">POČÚVAJ</button>
+              <label class="volume-label">
+                <img class="volume-icon" src="assets/icons/volume.png" alt="" />
+                <input id="volumeRange" type="range" min="0" max="1" step="0.1" value="0.8" aria-label="Hlasitosť" />
+              </label>
+            </div>
+          </div>
+        </section>
 
-        <nav class="toolbar" aria-label="Rýchle ovládanie">
-          <button class="icon-button" id="mapButton" type="button" aria-label="Mapa">
-            <span aria-hidden="true">⌂</span>
-          </button>
-          <button class="icon-button" id="surpriseButton" type="button" aria-label="Lumikové prekvapenia">
-            <span aria-hidden="true">★</span>
-          </button>
-          <button class="icon-button" id="alphabetButton" type="button" aria-label="Abeceda">
-            <span aria-hidden="true">A</span>
-          </button>
-          <button class="icon-button" id="parentButton" type="button" aria-label="Rodičovská zóna">
-            <span aria-hidden="true">⚿</span>
-          </button>
-        </nav>
+        <div class="topbar-actions">
+          <div class="status-strip" aria-live="polite">
+            <span class="status-pill" id="profilePill">Profil</span>
+            <span class="status-pill light-pill" id="lightPill" aria-label="Nazbierané svetielka">0</span>
+          </div>
+
+          <nav class="toolbar" aria-label="Rýchle ovládanie">
+            <button class="icon-button" id="mapButton" type="button" aria-label="Mapa">
+              <span aria-hidden="true">⌂</span>
+            </button>
+            <button class="icon-button" id="surpriseButton" type="button" aria-label="Lumikové prekvapenia">
+              <span aria-hidden="true">★</span>
+            </button>
+            <button class="icon-button" id="alphabetButton" type="button" aria-label="Abeceda">
+              <span aria-hidden="true">A</span>
+            </button>
+            <button class="icon-button" id="parentButton" type="button" aria-label="Rodičovská zóna">
+              <span aria-hidden="true">⚿</span>
+            </button>
+          </nav>
+        </div>
       </header>
 
       <main id="app" tabindex="-1"></main>
-
-      <section class="lumi-panel" aria-live="polite">
-        <img id="lumiPose" src="assets/poses/lumi_hovori.png" alt="" />
-        <div>
-          <p id="lumiLine">Ahoj. Vyber si profil a môžeme začať.</p>
-          <div class="voice-row">
-            <button class="soft-button" id="repeatButton" type="button">Počúvaj znova</button>
-            <label class="volume-label">
-              <span>Hlas</span>
-              <input id="volumeRange" type="range" min="0" max="1" step="0.1" value="0.8" />
-            </label>
-          </div>
-        </div>
-      </section>
     </div>
 
     <div class="modal-backdrop" id="alphabetModal" aria-hidden="true">

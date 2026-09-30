@@ -125,7 +125,7 @@ body.welcome-active {
 
 .welcome-lumi-wrap {
   position: relative;
-  width: clamp(210px, 34vw, 360px);
+  width: min(470px, calc(100vw - 44px), calc(100vh - 140px));
   aspect-ratio: 1;
   opacity: 0;
   transform: translateY(26px) scale(0.72);
@@ -133,26 +133,13 @@ body.welcome-active {
 }
 
 .welcome-lumi {
-  position: absolute;
-  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
   filter: drop-shadow(0 18px 24px rgba(18, 68, 133, 0.28));
   transform-origin: 50% 88%;
-}
-
-.welcome-lumi-start {
-  animation:
-    welcome-lumi-cheer 720ms ease-in-out 3100ms both,
-    welcome-pose-out 550ms ease 3780ms forwards;
-}
-
-.welcome-lumi-end {
-  opacity: 0;
-  transform: translateY(8px) scale(0.9);
-  animation: welcome-pose-in 650ms cubic-bezier(0.2, 0.9, 0.3, 1.2) 3780ms forwards;
+  animation: welcome-lumi-cheer 720ms ease-in-out 3100ms both;
 }
 
 .welcome-enter {
@@ -1476,27 +1463,6 @@ button {
   }
   72% {
     transform: translateY(2px) scale(0.98) rotate(1deg);
-  }
-}
-
-@keyframes welcome-pose-out {
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes welcome-pose-in {
-  0% {
-    opacity: 0;
-    transform: translateY(8px) scale(0.9);
-  }
-  70% {
-    opacity: 1;
-    transform: translateY(-4px) scale(1.06) rotate(-2deg);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1) rotate(0);
   }
 }
 

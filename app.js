@@ -5,6 +5,9 @@
   const TASK_IMAGE_BASE = "assets/tasks/";
   const SYLLABLE_RECORDING_PAUSES_MS = [300, 500];
   const REMOVED_PROFILE_NAMES = new Set(["emka", "gregi"]);
+  const AUDIO_DB_NAME = "lumi-alphabet-audio-v1";
+  const AUDIO_STORE_NAME = "recordings";
+  const MAX_RECORDING_MS = 4500;
 
   const poses = {
     hovori: `${POSE_BASE}lumi_hovori.png`,
@@ -380,6 +383,41 @@
     },
   ];
 
+  const levels = [
+    {
+      id: "pripravne",
+      number: 1,
+      title: "Prípravné obdobie",
+      subtitle: "Svet plný zábavy",
+      lessonOrders: [1, 2, 3, 4, 5],
+      accent: "#137cf4",
+    },
+    {
+      id: "slabikar-1",
+      number: 2,
+      title: "Šlabikárové obdobie 1",
+      subtitle: "Prvé zvuky a písmená",
+      lessonOrders: [6, 7, 8, 9, 10],
+      accent: "#2bbf88",
+    },
+    {
+      id: "slabikar-2",
+      number: 3,
+      title: "Šlabikárové obdobie 2",
+      subtitle: "Písmená, obrázky a nápovedy",
+      lessonOrders: [11, 12, 13, 14, 15],
+      accent: "#f0ae24",
+    },
+    {
+      id: "slabikar-3",
+      number: 4,
+      title: "Šlabikárové obdobie 3",
+      subtitle: "Slabiky a záverečné precvičenie",
+      lessonOrders: [16, 17, 18, 19, 20],
+      accent: "#725ce6",
+    },
+  ];
+
   const surprises = [
     { object: "autobus", task: "A" },
     { object: "banan", task: "B" },
@@ -400,11 +438,12 @@
   const funny = ["To by bol zvláštny objav.", "To sa často nevidí.", "Zaujímavá voľba."];
 
   let state = loadState();
-  let screen = state.activeProfileId ? "map" : "profile";
+  let screen = "home";
+  let activeLevelId = levels[0].id;
   let activeLesson = null;
   let rewardLesson = null;
   let rewardLightsEarned = 0;
-  let lastLine = "Ahoj. Vyber si profil a môžeme začať.";
+  let lastLine = "Vitaj. Vyber si level a môžeme začať.";
   let alphabetGoal = null;
   let audioCtx = null;
   let speechPauseTimer = null;
@@ -412,20 +451,50 @@
   let lastSpeechSequence = null;
   let currentLumiPose = "hovori";
   let lumiAnimationTimer = null;
-  let editingProfileId = "";
   let selectedProfileAvatar = profileAvatars[0].src;
+  let selectedReflectionLetter = alphabet[0];
+  let activeAlphabetDetail = null;
+  let alphabetScrollPosition = 0;
+  let pronunciationListening = false;
+  let selectedPatternAvailable = false;
+  let parentAudioLetter = alphabet[0];
+  let audioDatabasePromise = null;
+  let microphoneStream = null;
+  let microphoneStreamPromise = null;
+  let microphoneReleaseRequested = false;
+  let activeRecording = null;
+  let recordedAudioPlayer = null;
+  let recordedAudioUrl = "";
+  let lastRecordedAudio = null;
 
   const app = document.getElementById("app");
   const welcomeScreen = document.getElementById("welcomeScreen");
   const enterAppButton = document.getElementById("enterAppButton");
   const profilePill = document.getElementById("profilePill");
+  const profilePillAvatar = document.getElementById("profilePillAvatar");
+  const profilePillName = document.getElementById("profilePillName");
   const lightPill = document.getElementById("lightPill");
   const lumiPose = document.getElementById("lumiPose");
   const lumiLine = document.getElementById("lumiLine");
   const repeatButton = document.getElementById("repeatButton");
   const volumeRange = document.getElementById("volumeRange");
   const alphabetModal = document.getElementById("alphabetModal");
+  const alphabetSheet = document.getElementById("alphabetSheet");
   const alphabetGrid = document.getElementById("alphabetGrid");
+  const alphabetBrowseView = document.getElementById("alphabetBrowseView");
+  const alphabetReflectionView = document.getElementById("alphabetReflectionView");
+  const alphabetDetail = document.getElementById("alphabetDetail");
+  const alphabetDetailCard = document.getElementById("alphabetDetailCard");
+  const alphabetTitle = document.getElementById("alphabetTitle");
+  const alphabetEyebrow = document.getElementById("alphabetEyebrow");
+  const openReflectionButton = document.getElementById("openReflectionButton");
+  const reflectionLetterGrid = document.getElementById("reflectionLetterGrid");
+  const pronunciationLetter = document.getElementById("pronunciationLetter");
+  const pronunciationScore = document.getElementById("pronunciationScore");
+  const pronunciationScoreOutput = document.getElementById("pronunciationScoreOutput");
+  const pronunciationStatus = document.getElementById("pronunciationStatus");
+  const microphoneButton = document.getElementById("microphoneButton");
+  const microphoneButtonLabel = document.getElementById("microphoneButtonLabel");
   const parentModal = document.getElementById("parentModal");
   const parentContent = document.getElementById("parentContent");
   const profileModal = document.getElementById("profileModal");
@@ -433,17 +502,19 @@
   const profileNameInput = document.getElementById("profileNameInput");
   const profileAvatarGrid = document.getElementById("profileAvatarGrid");
   const profileEditorTitle = document.getElementById("profileEditorTitle");
+  const profileLightsCount = document.getElementById("profileLightsCount");
+  const resetProfileButton = document.getElementById("resetProfileButton");
   const toast = document.getElementById("toast");
 
   function defaultState() {
     return {
-      activeProfileId: "",
+      activeProfileId: "hugi",
       fullUnlocked: false,
       volume: 0.8,
       profiles: [
         {
-          id: "matko",
-          name: "Maťko",
+          id: "hugi",
+          name: "Hugi",
           avatar: poses.skolak,
           lights: 42,
           completed: [1, 2, 3, 4, 5],
@@ -476,12 +547,16 @@
       const filteredProfiles = loadedProfiles.filter(
         (profile) => !REMOVED_PROFILE_NAMES.has(profile.name.trim().toLocaleLowerCase("sk-SK")),
       );
-      const profiles = filteredProfiles.length ? filteredProfiles : defaults.profiles;
-      const nextState = { ...defaults, ...parsed, profiles };
-      if (nextState.activeProfileId && !profiles.some((profile) => profile.id === nextState.activeProfileId)) {
-        nextState.activeProfileId = "";
-      }
-      return nextState;
+      const activeProfile =
+        filteredProfiles.find((profile) => profile.id === parsed.activeProfileId) ||
+        filteredProfiles[0] ||
+        defaults.profiles[0];
+      return {
+        ...defaults,
+        ...parsed,
+        activeProfileId: activeProfile.id,
+        profiles: [activeProfile],
+      };
     } catch {
       return defaultState();
     }
@@ -504,14 +579,25 @@
   }
 
   function currentProfile() {
-    return state.profiles.find((profile) => profile.id === state.activeProfileId) || state.profiles[0];
+    return state.profiles[0];
+  }
+
+  function resetCurrentProfile() {
+    const profile = currentProfile();
+    profile.completed = [];
+    profile.lights = 0;
+    profile.knownLetters = [];
+    profile.surprisesDone = [];
+    saveState();
   }
 
   function updateTopbar() {
-    const profile = state.activeProfileId ? currentProfile() : null;
-    profilePill.textContent = profile ? profile.name : "Profil";
-    lightPill.textContent = profile ? profile.lights : "0";
-    document.documentElement.style.setProperty("--profile-light", String(profile ? profileLightLevel(profile) : 0));
+    const profile = currentProfile();
+    profilePillName.textContent = profile.name;
+    profilePillAvatar.src = profile.avatar;
+    profilePill.setAttribute("aria-label", `Upraviť profil ${profile.name}`);
+    lightPill.textContent = profile.lights;
+    document.documentElement.style.setProperty("--profile-light", String(profileLightLevel(profile)));
     volumeRange.value = String(state.volume ?? 0.8);
   }
 
@@ -582,6 +668,7 @@
   function speak(text) {
     lastLine = text;
     lastSpeechSequence = null;
+    lastRecordedAudio = null;
     if (!("speechSynthesis" in window)) {
       showToast(text);
       return;
@@ -602,6 +689,7 @@
     window.clearTimeout(speechPauseTimer);
     speechPauseTimer = null;
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    stopRecordedAudioPlayback();
   }
 
   function speakSoundsWithPause(sounds, pausesMs, ending = "") {
@@ -613,6 +701,7 @@
       pausesMs: Array.isArray(pausesMs) ? [...pausesMs] : pausesMs,
       ending,
     };
+    lastRecordedAudio = null;
     lumiLine.textContent = line;
     if (!("speechSynthesis" in window)) {
       showToast(line);
@@ -648,6 +737,325 @@
     playNext();
   }
 
+  function openAudioDatabase() {
+    if (audioDatabasePromise) return audioDatabasePromise;
+    audioDatabasePromise = new Promise((resolve, reject) => {
+      if (!("indexedDB" in window)) {
+        reject(new Error("Úložisko nahrávok nie je v tomto prehliadači dostupné."));
+        return;
+      }
+      const request = window.indexedDB.open(AUDIO_DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        if (!database.objectStoreNames.contains(AUDIO_STORE_NAME)) {
+          database.createObjectStore(AUDIO_STORE_NAME, { keyPath: "id" });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error("Nahrávky sa nepodarilo otvoriť."));
+    });
+    return audioDatabasePromise;
+  }
+
+  function audioRecordId(kind, letter) {
+    return `${kind}:${letter}`;
+  }
+
+  async function getAudioRecord(kind, letter) {
+    const database = await openAudioDatabase();
+    return new Promise((resolve, reject) => {
+      const request = database.transaction(AUDIO_STORE_NAME, "readonly")
+        .objectStore(AUDIO_STORE_NAME)
+        .get(audioRecordId(kind, letter));
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error || new Error("Nahrávku sa nepodarilo načítať."));
+    });
+  }
+
+  async function getAllAudioRecords() {
+    const database = await openAudioDatabase();
+    return new Promise((resolve, reject) => {
+      const request = database.transaction(AUDIO_STORE_NAME, "readonly")
+        .objectStore(AUDIO_STORE_NAME)
+        .getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error || new Error("Nahrávky sa nepodarilo načítať."));
+    });
+  }
+
+  async function saveAudioRecord(kind, item, blob, features = null) {
+    const database = await openAudioDatabase();
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction(AUDIO_STORE_NAME, "readwrite");
+      transaction.objectStore(AUDIO_STORE_NAME).put({
+        id: audioRecordId(kind, item.letter),
+        kind,
+        letter: item.letter,
+        word: item.word,
+        blob,
+        features,
+        updatedAt: Date.now(),
+      });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error("Nahrávku sa nepodarilo uložiť."));
+    });
+  }
+
+  async function deleteAudioRecordsForLetter(letter) {
+    const database = await openAudioDatabase();
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction(AUDIO_STORE_NAME, "readwrite");
+      const store = transaction.objectStore(AUDIO_STORE_NAME);
+      store.delete(audioRecordId("alphabet", letter));
+      store.delete(audioRecordId("pattern", letter));
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error("Nahrávky sa nepodarilo odstrániť."));
+    });
+  }
+
+  function stopRecordedAudioPlayback() {
+    if (recordedAudioPlayer) {
+      recordedAudioPlayer.pause();
+      recordedAudioPlayer.removeAttribute("src");
+      recordedAudioPlayer = null;
+    }
+    if (recordedAudioUrl) {
+      URL.revokeObjectURL(recordedAudioUrl);
+      recordedAudioUrl = "";
+    }
+  }
+
+  async function playAudioBlob(blob) {
+    cancelSpeechPlayback();
+    recordedAudioUrl = URL.createObjectURL(blob);
+    recordedAudioPlayer = new Audio(recordedAudioUrl);
+    recordedAudioPlayer.volume = Number(state.volume ?? 0.8);
+    recordedAudioPlayer.onended = () => {
+      stopRecordedAudioPlayback();
+      settleLumiAnimation();
+    };
+    recordedAudioPlayer.onerror = () => {
+      stopRecordedAudioPlayback();
+      settleLumiAnimation();
+      showToast("Nahrávku sa nepodarilo prehrať.");
+    };
+    animateLumi(currentLumiPose, true);
+    await recordedAudioPlayer.play();
+  }
+
+  async function playStoredRecording(kind, item, remember = false) {
+    try {
+      const record = await getAudioRecord(kind, item.letter);
+      if (!record?.blob) return false;
+      if (remember) lastRecordedAudio = { kind, letter: item.letter };
+      await playAudioBlob(record.blob);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function ensureMicrophoneStream() {
+    const activeStream = microphoneStream?.getAudioTracks().some((track) => track.readyState === "live");
+    if (activeStream) return microphoneStream;
+    if (microphoneStreamPromise) return microphoneStreamPromise;
+    if (!navigator.mediaDevices?.getUserMedia || !("MediaRecorder" in window)) {
+      throw new Error("Mikrofónové nahrávanie nie je v tomto prehliadači dostupné.");
+    }
+    microphoneReleaseRequested = false;
+    microphoneStreamPromise = navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+    try {
+      microphoneStream = await microphoneStreamPromise;
+      if (microphoneReleaseRequested) {
+        microphoneStream.getTracks().forEach((track) => track.stop());
+        microphoneStream = null;
+        throw new Error("Nahrávanie bolo zrušené.");
+      }
+      return microphoneStream;
+    } finally {
+      microphoneStreamPromise = null;
+    }
+  }
+
+  function releaseMicrophoneStream() {
+    microphoneReleaseRequested = true;
+    microphoneStream?.getTracks().forEach((track) => track.stop());
+    microphoneStream = null;
+  }
+
+  function supportedRecordingMimeType() {
+    return ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"]
+      .find((type) => window.MediaRecorder?.isTypeSupported?.(type)) || "";
+  }
+
+  async function startAudioRecording({ item, kind, purpose, onStateChange, onComplete, onError }) {
+    if (activeRecording) return;
+    try {
+      const stream = await ensureMicrophoneStream();
+      const mimeType = supportedRecordingMimeType();
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const session = {
+        recorder,
+        chunks: [],
+        item,
+        kind,
+        purpose,
+        cancelled: false,
+        timer: null,
+        onStateChange,
+        onComplete,
+        onError,
+      };
+      activeRecording = session;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) session.chunks.push(event.data);
+      };
+      recorder.onerror = () => {
+        session.cancelled = true;
+        session.onError?.(new Error("Nahrávanie sa prerušilo."));
+      };
+      recorder.onstop = async () => {
+        window.clearTimeout(session.timer);
+        if (activeRecording === session) activeRecording = null;
+        session.onStateChange?.(false);
+        if (session.cancelled) return;
+        const blob = new Blob(session.chunks, { type: recorder.mimeType || "audio/webm" });
+        if (!blob.size) {
+          session.onError?.(new Error("Nahrávka je prázdna."));
+          return;
+        }
+        try {
+          await session.onComplete?.(blob, session);
+        } catch (error) {
+          session.onError?.(error);
+        }
+      };
+      recorder.start(150);
+      session.timer = window.setTimeout(() => stopAudioRecording(), MAX_RECORDING_MS);
+      session.onStateChange?.(true);
+    } catch (error) {
+      onStateChange?.(false);
+      onError?.(error);
+    }
+  }
+
+  function stopAudioRecording() {
+    if (activeRecording?.recorder.state === "recording") activeRecording.recorder.stop();
+  }
+
+  function cancelAudioRecording(purpose = null) {
+    if (!activeRecording || (purpose && activeRecording.purpose !== purpose)) return;
+    activeRecording.cancelled = true;
+    stopAudioRecording();
+  }
+
+  async function extractAudioFeatures(blob) {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") await audioCtx.resume();
+    const audioBuffer = await audioCtx.decodeAudioData((await blob.arrayBuffer()).slice(0));
+    const source = audioBuffer.getChannelData(0);
+    const targetRate = 8000;
+    const step = audioBuffer.sampleRate / targetRate;
+    const samples = new Float32Array(Math.max(1, Math.floor(source.length / step)));
+    for (let index = 0; index < samples.length; index += 1) {
+      samples[index] = source[Math.min(source.length - 1, Math.floor(index * step))];
+    }
+
+    let peak = 0;
+    for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
+    const threshold = Math.max(0.008, peak * 0.08);
+    let start = 0;
+    let end = samples.length - 1;
+    while (start < end && Math.abs(samples[start]) < threshold) start += 1;
+    while (end > start && Math.abs(samples[end]) < threshold) end -= 1;
+    const padding = Math.round(targetRate * 0.06);
+    start = Math.max(0, start - padding);
+    end = Math.min(samples.length - 1, end + padding);
+    const duration = (end - start + 1) / targetRate;
+    if (peak < 0.012 || duration < 0.12) throw new Error("Nahrávka je príliš tichá alebo krátka.");
+
+    const frameSize = 256;
+    const hop = 128;
+    const availableFrames = Math.max(1, Math.floor((end - start - frameSize) / hop) + 1);
+    const frameCount = Math.min(42, availableFrames);
+    const vectors = [];
+    for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+      const sourceFrame = availableFrames === 1
+        ? 0
+        : Math.round((frameIndex / (frameCount - 1)) * (availableFrames - 1));
+      const offset = start + sourceFrame * hop;
+      const bands = Array(12).fill(0);
+      let rms = 0;
+      let crossings = 0;
+      let previous = samples[offset] || 0;
+      for (let index = 0; index < frameSize; index += 1) {
+        const value = samples[offset + index] || 0;
+        rms += value * value;
+        if ((value >= 0) !== (previous >= 0)) crossings += 1;
+        previous = value;
+      }
+      rms = Math.sqrt(rms / frameSize);
+      for (let bin = 2; bin < frameSize / 2; bin += 1) {
+        let real = 0;
+        let imaginary = 0;
+        for (let index = 0; index < frameSize; index += 1) {
+          const windowed = (samples[offset + index] || 0) * (0.5 - 0.5 * Math.cos((2 * Math.PI * index) / (frameSize - 1)));
+          const angle = (2 * Math.PI * bin * index) / frameSize;
+          real += windowed * Math.cos(angle);
+          imaginary -= windowed * Math.sin(angle);
+        }
+        const power = real * real + imaginary * imaginary;
+        const band = Math.min(11, Math.floor((Math.log(bin) / Math.log(frameSize / 2)) * 12));
+        bands[band] += power;
+      }
+      const spectrum = bands.map((value) => Math.log1p(value));
+      const magnitude = Math.sqrt(spectrum.reduce((sum, value) => sum + value * value, 0)) || 1;
+      vectors.push([
+        ...spectrum.map((value) => value / magnitude),
+        crossings / frameSize,
+        Math.min(1, rms * 8),
+      ]);
+    }
+    return { duration, vectors };
+  }
+
+  function featureVectorDistance(left, right) {
+    const length = Math.min(left.length, right.length);
+    let total = 0;
+    for (let index = 0; index < length; index += 1) {
+      const difference = left[index] - right[index];
+      total += difference * difference;
+    }
+    return Math.sqrt(total / Math.max(1, length));
+  }
+
+  function compareAudioFeatures(reference, attempt) {
+    const left = reference.vectors;
+    const right = attempt.vectors;
+    const previous = Array(right.length + 1).fill(Number.POSITIVE_INFINITY);
+    previous[0] = 0;
+    for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+      const current = Array(right.length + 1).fill(Number.POSITIVE_INFINITY);
+      for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+        const cost = featureVectorDistance(left[leftIndex - 1], right[rightIndex - 1]);
+        current[rightIndex] = cost + Math.min(previous[rightIndex], current[rightIndex - 1], previous[rightIndex - 1]);
+      }
+      for (let index = 0; index < current.length; index += 1) previous[index] = current[index];
+    }
+    const averageDistance = previous[right.length] / Math.max(left.length, right.length, 1);
+    const spectralScore = Math.exp(-averageDistance * 4.2);
+    const durationRatio = Math.max(0.01, attempt.duration / Math.max(reference.duration, 0.01));
+    const durationScore = Math.exp(-Math.abs(Math.log(durationRatio)) * 1.35);
+    return Math.round(Math.max(0, Math.min(1, spectralScore * 0.82 + durationScore * 0.18)) * 100);
+  }
+
   function sfx(kind) {
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
@@ -678,17 +1086,18 @@
   function enterApplication() {
     if (!welcomeScreen || welcomeScreen.classList.contains("leaving")) return;
     enterAppButton.disabled = true;
-    screen = "profile";
+    const profile = currentProfile();
+    screen = "home";
     activeLesson = null;
     alphabetGoal = null;
     render();
-    setLumi("Ahoj. Vyber si profil a môžeme začať.", "hovori");
+    setLumi(`Vitaj ${profile.name}. Vyber si level a môžeme začať.`, "hovori");
     welcomeScreen.classList.add("leaving");
     document.body.classList.remove("welcome-active");
     window.setTimeout(() => {
       welcomeScreen.remove();
-      const firstProfile = document.querySelector("[data-profile]");
-      (firstProfile || app).focus({ preventScroll: true });
+      const firstLevel = document.querySelector("[data-level]");
+      (firstLevel || app).focus({ preventScroll: true });
     }, 600);
   }
 
@@ -702,76 +1111,100 @@
 
   function render() {
     updateTopbar();
-    if (screen === "profile") renderProfiles();
+    if (screen === "home") renderHome();
     if (screen === "map") renderMap();
     if (screen === "lesson") renderLesson(activeLesson);
     if (screen === "surprise") renderSurprises();
     if (screen === "reward") renderReward();
   }
 
-  function profileProgress(profile) {
-    return Math.round(((profile.completed?.length || 0) / lessons.length) * 100);
+  function getLevel(levelId = activeLevelId) {
+    return levels.find((level) => level.id === levelId) || levels[0];
   }
 
-  function renderProfiles() {
-    const cards = state.profiles
-      .map(
-        (profile) => `
-          <div class="profile-card" style="--profile-card-light:${profileLightLevel(profile)}">
-            <button class="profile-select" type="button" data-profile="${escapeHtml(profile.id)}">
-              <span class="profile-avatar"><img src="${profile.avatar}" alt="" /></span>
-              <span class="profile-card-copy">
-                <strong>${escapeHtml(profile.name)}</strong>
-                <span>${profile.completed.length} / ${lessons.length} krokov</span>
+  function lessonsForLevel(level = getLevel()) {
+    return level.lessonOrders
+      .map((order) => lessons.find((lesson) => lesson.order === order))
+      .filter(Boolean);
+  }
+
+  function levelForLesson(lesson) {
+    return levels.find((level) => level.lessonOrders.includes(lesson?.order)) || levels[0];
+  }
+
+  function levelCompletion(profile, level) {
+    const total = level.lessonOrders.length;
+    const completed = level.lessonOrders.filter((order) => profile.completed.includes(order)).length;
+    return {
+      completed,
+      total,
+      percent: total ? Math.round((completed / total) * 100) : 0,
+    };
+  }
+
+  function renderHome() {
+    const profile = currentProfile();
+    const levelCards = levels
+      .map((level) => {
+        const progress = levelCompletion(profile, level);
+        return `
+          <button class="level-card" type="button" data-level="${level.id}" style="--level-accent:${level.accent}">
+            <span class="level-number">${level.number}</span>
+            <span class="level-card-copy">
+              <strong>${escapeHtml(level.title)}</strong>
+              <small>${escapeHtml(level.subtitle)}</small>
+              <span class="level-progress-meta">
+                <span>${progress.completed} / ${progress.total} splnených úloh</span>
+                <b>${progress.percent} %</b>
               </span>
-              <span class="status-pill light-pill">${profile.lights}</span>
-            </button>
-            <button class="profile-edit-button" type="button" data-edit-profile="${escapeHtml(profile.id)}" aria-label="Upraviť profil ${escapeHtml(profile.name)}" title="Upraviť profil">
-              <span aria-hidden="true">✎</span>
-            </button>
-          </div>
-        `,
-      )
+              <progress class="level-slider" max="${progress.total}" value="${progress.completed}" aria-label="${escapeHtml(level.title)}: ${progress.completed} z ${progress.total} splnených úloh"></progress>
+            </span>
+            <span class="level-arrow" aria-hidden="true">›</span>
+          </button>
+        `;
+      })
       .join("");
 
     app.innerHTML = `
-      <section class="screen profile-screen">
+      <section class="screen profile-screen home-screen">
         <div class="hero-stage">
-          <img src="${poses.hovori}" alt="Lumi máva" />
+          <img src="${profile.avatar}" alt="Obrázok profilu ${escapeHtml(profile.name)}" />
           <div class="hero-copy">
-            <h1>Vitaj Hugi</h1>
+            <p class="eyebrow">Šlabikár</p>
+            <h1>Vitaj ${escapeHtml(profile.name)}</h1>
+            <p>Vyber si level a pokračuj tam, kde si naposledy skončil.</p>
           </div>
         </div>
-        <div class="profile-list card">
-          ${cards}
-          <button class="profile-card profile-add-button" type="button" id="addProfileButton">
-            <span class="profile-avatar"><img src="${poses.ok}" alt="" /></span>
-            <span class="profile-card-copy">
-              <strong>Nový profil</strong>
-              <span>Začať od kroku 1</span>
-            </span>
-            <span class="add-symbol" aria-hidden="true">＋</span>
-          </button>
+        <div class="home-level-panel">
+          <div class="level-list">
+            <div class="level-list-head">
+              <p class="eyebrow">Moje levely</p>
+              <h2>Vyber si obdobie</h2>
+            </div>
+            ${levelCards}
+          </div>
+          <div class="home-corner-actions" aria-label="Ďalšie možnosti">
+            <button class="icon-button" id="surpriseButton" type="button" aria-label="Lumikové prekvapenia">
+              <span aria-hidden="true">★</span>
+            </button>
+            <button class="icon-button" id="parentButton" type="button" aria-label="Rodičovská zóna">
+              <span aria-hidden="true">⚿</span>
+            </button>
+          </div>
         </div>
       </section>
     `;
 
-    app.querySelectorAll("[data-profile]").forEach((button) => {
+    app.querySelectorAll("[data-level]").forEach((button) => {
       button.addEventListener("click", () => {
-        state.activeProfileId = button.dataset.profile;
-        saveState();
-        setLumi("Ahoj. Dnes si dáme krátky krok.", "skolak", true);
+        activeLevelId = button.dataset.level;
+        const level = getLevel();
+        setLumi(`Vybral si ${level.title}.`, "skolak", true);
         setScreen("map");
       });
     });
-
-    app.querySelectorAll("[data-edit-profile]").forEach((button) => {
-      button.addEventListener("click", () => openProfileEditor(button.dataset.editProfile));
-    });
-
-    document.getElementById("addProfileButton").addEventListener("click", () => {
-      openProfileEditor();
-    });
+    document.getElementById("surpriseButton").addEventListener("click", () => setScreen("surprise"));
+    document.getElementById("parentButton").addEventListener("click", () => showParentModal());
   }
 
   function renderProfileAvatars() {
@@ -796,12 +1229,12 @@
     });
   }
 
-  function openProfileEditor(profileId = "") {
-    const profile = state.profiles.find((item) => item.id === profileId);
-    editingProfileId = profile?.id || "";
-    selectedProfileAvatar = normalizeAvatar(profile?.avatar, state.profiles.length);
-    profileEditorTitle.textContent = profile ? "Upraviť profil" : "Nový profil";
-    profileNameInput.value = profile?.name || `Profil ${state.profiles.length + 1}`;
+  function openProfileEditor() {
+    const profile = currentProfile();
+    selectedProfileAvatar = normalizeAvatar(profile.avatar);
+    profileEditorTitle.textContent = "Upraviť profil";
+    profileNameInput.value = profile.name;
+    profileLightsCount.textContent = profile.lights;
     renderProfileAvatars();
     profileModal.classList.add("show");
     profileModal.setAttribute("aria-hidden", "false");
@@ -814,19 +1247,20 @@
   function closeProfileEditor() {
     profileModal.classList.remove("show");
     profileModal.setAttribute("aria-hidden", "true");
-    editingProfileId = "";
   }
 
   function renderMap() {
     const profile = currentProfile();
-    const progress = profileProgress(profile);
-    const steps = lessons
-      .map((lesson) => {
+    const level = getLevel();
+    const levelLessons = lessonsForLevel(level);
+    const progress = levelCompletion(profile, level);
+    const steps = levelLessons
+      .map((lesson, index) => {
         const done = profile.completed.includes(lesson.order);
         const locked = !state.fullUnlocked && lesson.order > 8;
         return `
           <button class="world-step ${done ? "done" : ""} ${locked ? "locked" : ""}" type="button" data-step="${lesson.order}">
-            <span class="number">${lesson.order}</span>
+            <span class="number">${index + 1}</span>
             <strong>${escapeHtml(lesson.title)}</strong>
             <small>${escapeHtml(lesson.skill)}</small>
           </button>
@@ -838,22 +1272,26 @@
       <section class="screen map-screen">
         <div class="screen-title">
           <div>
-            <p class="eyebrow">Prípravné obdobie</p>
-            <h1>Svet plný zábavy</h1>
-            <p>Kroky 1 až 8 sú otvorené. Ďalšie kroky sú pripravené v plnej verzii.</p>
+            <p class="eyebrow">Level ${level.number}</p>
+            <h1>${escapeHtml(level.title)}</h1>
+            <p>${escapeHtml(level.subtitle)}</p>
           </div>
-          <div class="progress-card">
-            <div class="progress-label">
-              <span>Pokrok</span>
-              <span>${progress}%</span>
+          <div class="level-map-actions">
+            <button class="soft-button listen-style-button" id="backToLevelsButton" type="button">Levely</button>
+            <div class="progress-card">
+              <div class="progress-label">
+                <span>Splnené úlohy</span>
+                <span>${progress.completed} / ${progress.total}</span>
+              </div>
+              <div class="progress-track" style="--value:${progress.percent}%"><span></span></div>
             </div>
-            <div class="progress-track" style="--value:${progress}%"><span></span></div>
           </div>
         </div>
-        <div class="world-grid">${steps}</div>
+        <div class="world-grid level-exercise-grid">${steps}</div>
       </section>
     `;
 
+    document.getElementById("backToLevelsButton").addEventListener("click", () => setScreen("home"));
     app.querySelectorAll("[data-step]").forEach((button) => {
       button.addEventListener("click", () => {
         const lesson = lessons.find((item) => item.order === Number(button.dataset.step));
@@ -874,13 +1312,17 @@
       return;
     }
     const profile = currentProfile();
-    const progress = Math.round((lesson.order / lessons.length) * 100);
+    const level = levelForLesson(lesson);
+    const levelLessons = lessonsForLevel(level);
+    const lessonIndex = levelLessons.findIndex((item) => item.order === lesson.order);
+    const progress = levelCompletion(profile, level);
+    activeLevelId = level.id;
     app.innerHTML = `
       <section class="screen lesson-screen">
         <div class="lesson-head">
-          <button class="soft-button" id="backToMapButton" type="button">Mapa</button>
+          <button class="soft-button" id="backToMapButton" type="button">Cvičenia</button>
           <div class="task-title">
-            <p class="eyebrow">Krok ${lesson.order} / ${lessons.length}</p>
+            <p class="eyebrow">Level ${level.number} · Cvičenie ${lessonIndex + 1} / ${levelLessons.length}</p>
             <h1>${escapeHtml(lesson.title)}</h1>
             <p>${escapeHtml(lesson.skill)}</p>
           </div>
@@ -891,8 +1333,8 @@
           <aside class="side-card">
             <div class="reward-box">
               <strong>${escapeHtml(profile.name)}</strong>
-              <span>${profile.completed.length} hotových krokov</span>
-              <div class="progress-track" style="--value:${progress}%"><span></span></div>
+              <span>${progress.completed} / ${progress.total} úloh v tomto leveli</span>
+              <div class="progress-track" style="--value:${progress.percent}%"><span></span></div>
             </div>
             <div class="reward-box">
               <strong>Svetelná sila</strong>
@@ -1472,7 +1914,10 @@
     const profile = currentProfile();
     const lesson = rewardLesson || lessons[0];
     const earned = rewardLightsEarned;
-    const next = lessons.find((item) => item.order === lesson.order + 1);
+    const level = levelForLesson(lesson);
+    const levelLessons = lessonsForLevel(level);
+    activeLevelId = level.id;
+    const next = levelLessons.find((item) => item.order === lesson.order + 1);
     const canContinue = next && (state.fullUnlocked || next.order <= 8);
     app.innerHTML = `
       <section class="screen">
@@ -1485,8 +1930,8 @@
               ? `${escapeHtml(profile.name)} získava ${earned} ${lightWord(earned)} a rozžiaruje svoj Svet plný zábavy.`
               : `${escapeHtml(profile.name)} si úspešne zopakoval túto úlohu.`}</p>
             <div class="secondary-row">
-              <button class="primary-button" id="rewardMapButton" type="button">Mapa</button>
-              ${canContinue ? `<button class="soft-button" id="nextLessonButton" type="button">Ďalší krok</button>` : ""}
+              <button class="primary-button" id="rewardMapButton" type="button">Späť na cvičenia</button>
+              ${canContinue ? `<button class="soft-button" id="nextLessonButton" type="button">Ďalšie cvičenie</button>` : ""}
             </div>
           </div>
         </div>
@@ -1513,7 +1958,7 @@
             <h1>Lumikové prekvapenia</h1>
             <p>Odkry okienko a splň jednu krátku úlohu.</p>
           </div>
-          <button class="soft-button" id="surpriseMapButton" type="button">Mapa</button>
+          <button class="soft-button" id="surpriseMapButton" type="button">Levely</button>
         </div>
         <div class="lesson-body">
           <section class="task-card">
@@ -1538,7 +1983,7 @@
         </div>
       </section>
     `;
-    document.getElementById("surpriseMapButton").addEventListener("click", () => setScreen("map"));
+    document.getElementById("surpriseMapButton").addEventListener("click", () => setScreen("home"));
     app.querySelectorAll("[data-surprise]").forEach((button) => {
       button.addEventListener("click", () => openSurprise(Number(button.dataset.surprise), button));
     });
@@ -1621,6 +2066,48 @@
     showToast(newlyCompleted ? "+1 svetielko" : "Toto svetielko už svieti.");
   }
 
+  async function playAlphabetItem(item, includeWord = true) {
+    if (!item) return;
+    const line = includeWord && !item.letterOnly
+      ? `${item.letter} ako ${item.word}.`
+      : `${item.letter}.`;
+    setLumi(line, "ukazuje", false);
+    const recordingKind = includeWord ? "alphabet" : "pattern";
+    if (await playStoredRecording(recordingKind, item, true)) return;
+    lastRecordedAudio = null;
+    if (!includeWord || item.letterOnly) {
+      speakSoundsWithPause([item.letter], [100]);
+      return;
+    }
+    speakSoundsWithPause([item.letter], [100], `ako ${item.word}.`);
+  }
+
+  function openAlphabetDetail(item) {
+    activeAlphabetDetail = item;
+    alphabetScrollPosition = alphabetSheet.scrollTop;
+    alphabetDetailCard.innerHTML = item.card
+      ? `<img src="${item.card}" alt="${escapeHtml(item.word ? `${item.letter} ako ${item.word}` : item.letter)}" />`
+      : `<span class="alphabet-detail-letter">${item.letter}</span>`;
+    alphabetDetailCard.setAttribute(
+      "aria-label",
+      `Prehrať znova: ${item.word ? `${item.letter} ako ${item.word}` : item.letter}`,
+    );
+    alphabetDetail.classList.remove("hidden");
+    alphabetDetail.setAttribute("aria-hidden", "false");
+    alphabetSheet.classList.add("detail-open");
+    alphabetSheet.scrollTop = 0;
+    document.getElementById("closeAlphabetDetailButton").focus({ preventScroll: true });
+  }
+
+  function closeAlphabetDetail() {
+    const wasOpen = Boolean(activeAlphabetDetail);
+    activeAlphabetDetail = null;
+    alphabetDetail.classList.add("hidden");
+    alphabetDetail.setAttribute("aria-hidden", "true");
+    alphabetSheet.classList.remove("detail-open");
+    if (wasOpen) alphabetSheet.scrollTop = alphabetScrollPosition;
+  }
+
   function renderAlphabet() {
     alphabetGrid.innerHTML = alphabet
       .map(
@@ -1651,33 +2138,312 @@
         const item = alphabet.find((entry) => entry.letter === button.dataset.alphabet);
         alphabetGrid.querySelectorAll(".letter-tile").forEach((tile) => tile.classList.remove("correct", "wrong"));
         button.classList.add("correct");
-        if (item.letterOnly) {
-          setLumi(`${item.letter}.`, "ukazuje", false);
-          speakSoundsWithPause([item.letter], [100]);
-        } else {
-          setLumi(`${item.letter} ako ${item.word}.`, "ukazuje", false);
-          speakSoundsWithPause([item.letter], [100], `ako ${item.word}.`);
-        }
+        playAlphabetItem(item);
         if (alphabetGoal && item.letter === alphabetGoal.letter) {
           closeAlphabet();
           completeLesson(alphabetGoal.lesson);
         } else if (alphabetGoal) {
           button.classList.add("wrong");
           setLumi("Pozri ešte raz. Hľadáme iné písmeno.", "rozmysla", true);
+        } else {
+          openAlphabetDetail(item);
         }
       });
     });
   }
 
+  function resetPronunciationScore(message = "Vyber písmeno a stlač mikrofón.") {
+    pronunciationScore.value = "0";
+    pronunciationScoreOutput.value = "0 %";
+    pronunciationScoreOutput.textContent = "0 %";
+    pronunciationStatus.textContent = message;
+  }
+
+  async function selectReflectionLetter(item, playReference = true) {
+    if (!item || pronunciationListening) return;
+    selectedReflectionLetter = item;
+    pronunciationLetter.textContent = item.letter;
+    reflectionLetterGrid.querySelectorAll("[data-reflection-letter]").forEach((button) => {
+      const selected = button.dataset.reflectionLetter === item.letter;
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    selectedPatternAvailable = false;
+    microphoneButton.disabled = true;
+    resetPronunciationScore(`Kontrolujem rečový vzor pre písmeno ${item.letter}...`);
+    try {
+      const pattern = await getAudioRecord("pattern", item.letter);
+      if (selectedReflectionLetter !== item) return;
+      selectedPatternAvailable = Boolean(pattern?.blob && pattern?.features);
+      microphoneButton.disabled = !selectedPatternAvailable;
+      pronunciationStatus.textContent = selectedPatternAvailable
+        ? `Rečový vzor pre ${item.letter} je pripravený.`
+        : `Pre písmeno ${item.letter} ešte chýba rečový vzor v rodičovskej zóne.`;
+    } catch {
+      pronunciationStatus.textContent = "Uložené rečové vzory sa nepodarilo načítať.";
+    }
+    if (playReference) playAlphabetItem(item, false);
+  }
+
+  function renderReflectionAlphabet() {
+    reflectionLetterGrid.innerHTML = alphabet
+      .map(
+        (item) => `
+          <button
+            class="reflection-letter ${item.letter === selectedReflectionLetter.letter ? "selected" : ""}"
+            type="button"
+            data-reflection-letter="${item.letter}"
+            aria-pressed="${item.letter === selectedReflectionLetter.letter}"
+            aria-label="Vybrať písmeno ${item.letter}"
+          >${item.letter}</button>
+        `,
+      )
+      .join("");
+    reflectionLetterGrid.querySelectorAll("[data-reflection-letter]").forEach((button) => {
+      button.addEventListener("click", () => {
+        selectReflectionLetter(alphabet.find((item) => item.letter === button.dataset.reflectionLetter));
+      });
+    });
+    selectReflectionLetter(selectedReflectionLetter, false);
+  }
+
+  function setMicrophoneState(listening) {
+    pronunciationListening = listening;
+    microphoneButton.classList.toggle("listening", listening);
+    microphoneButton.setAttribute("aria-pressed", String(listening));
+    microphoneButtonLabel.textContent = listening ? "ZASTAVIŤ" : "MIKROFÓN";
+    microphoneButton.disabled = listening ? false : !selectedPatternAvailable;
+    reflectionLetterGrid.querySelectorAll("button").forEach((button) => {
+      button.disabled = listening;
+    });
+  }
+
+  function stopPronunciationAssessment() {
+    cancelAudioRecording("reflection");
+    setMicrophoneState(false);
+  }
+
+  async function startPronunciationAssessment() {
+    if (pronunciationListening) {
+      stopAudioRecording();
+      return;
+    }
+    if (!selectedPatternAvailable) {
+      pronunciationStatus.textContent = `Najprv nahraj rečový vzor pre ${selectedReflectionLetter.letter} v rodičovskej zóne.`;
+      return;
+    }
+    cancelSpeechPlayback();
+    const assessedItem = selectedReflectionLetter;
+    await startAudioRecording({
+      item: assessedItem,
+      kind: "attempt",
+      purpose: "reflection",
+      onStateChange: (recording) => {
+        setMicrophoneState(recording);
+        if (recording) {
+          pronunciationStatus.textContent = `Počúvam písmeno ${assessedItem.letter}...`;
+          setLumi("Počúvam ťa.", "pocuva", false);
+        } else {
+          pronunciationStatus.textContent = "Porovnávam nahrávku s rečovým vzorom...";
+        }
+      },
+      onComplete: async (blob) => {
+        const pattern = await getAudioRecord("pattern", assessedItem.letter);
+        if (!pattern?.features) throw new Error("Rečový vzor sa nepodarilo načítať.");
+        const attemptFeatures = await extractAudioFeatures(blob);
+        const score = compareAudioFeatures(pattern.features, attemptFeatures);
+        pronunciationScore.value = String(score);
+        pronunciationScoreOutput.value = `${score} %`;
+        pronunciationScoreOutput.textContent = `${score} %`;
+        if (score >= 80) {
+          pronunciationStatus.textContent = "Výborne. Výslovnosť sa zhoduje so vzorom.";
+          sfx("ok");
+          setLumi("Výborne. Výslovnosť sa podarila.", "tesi", true);
+        } else if (score >= 58) {
+          pronunciationStatus.textContent = "Takmer. Vypočuj si vzor a skús to ešte raz.";
+          setLumi("Takmer. Skús to ešte raz.", "rozmysla", true);
+        } else {
+          pronunciationStatus.textContent = "Výslovnosť sa zatiaľ nezhoduje. Vypočuj si vzor znova.";
+          setLumi("Vypočuj si vzor a skús to pomaly.", "rozmysla", true);
+        }
+      },
+      onError: (error) => {
+        setMicrophoneState(false);
+        pronunciationStatus.textContent = error?.message || "Nahrávanie sa nepodarilo. Skús to znova.";
+      },
+    });
+  }
+
+  function showAlphabetBrowse() {
+    stopPronunciationAssessment();
+    releaseMicrophoneStream();
+    closeAlphabetDetail();
+    alphabetBrowseView.classList.remove("hidden");
+    alphabetReflectionView.classList.add("hidden");
+    openReflectionButton.classList.remove("hidden");
+    alphabetEyebrow.textContent = "Nápoveda";
+    alphabetTitle.textContent = "Abeceda";
+  }
+
+  function openAlphabetReflection() {
+    closeAlphabetDetail();
+    renderReflectionAlphabet();
+    alphabetBrowseView.classList.add("hidden");
+    alphabetReflectionView.classList.remove("hidden");
+    openReflectionButton.classList.add("hidden");
+    alphabetEyebrow.textContent = "Reflexia";
+    alphabetTitle.textContent = "Čo už viem";
+    document.getElementById("backToAlphabetButton").focus({ preventScroll: true });
+  }
+
   function openAlphabet() {
+    showAlphabetBrowse();
     renderAlphabet();
     alphabetModal.classList.add("show");
     alphabetModal.setAttribute("aria-hidden", "false");
   }
 
   function closeAlphabet() {
+    stopPronunciationAssessment();
+    releaseMicrophoneStream();
+    closeAlphabetDetail();
     alphabetModal.classList.remove("show");
     alphabetModal.setAttribute("aria-hidden", "true");
+  }
+
+  function alphabetRecordingPrompt(item) {
+    return item.letterOnly || !item.word ? item.letter : `${item.letter} ako ${item.word}`;
+  }
+
+  function updateParentAudioSelection() {
+    const selectedLetter = document.getElementById("parentAudioSelectedLetter");
+    const alphabetPrompt = document.getElementById("parentAlphabetPrompt");
+    const patternPrompt = document.getElementById("parentPatternPrompt");
+    if (!selectedLetter || !alphabetPrompt || !patternPrompt) return;
+    selectedLetter.textContent = parentAudioLetter.letter;
+    alphabetPrompt.textContent = `Nahraj: „${alphabetRecordingPrompt(parentAudioLetter)}“`;
+    patternPrompt.textContent = `Vyslov iba písmeno „${parentAudioLetter.letter}“.`;
+    document.querySelectorAll("[data-parent-audio-letter]").forEach((button) => {
+      const selected = button.dataset.parentAudioLetter === parentAudioLetter.letter;
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+  }
+
+  async function refreshParentAudioStudio(message = "") {
+    const summary = document.getElementById("parentAudioSummary");
+    const status = document.getElementById("parentAudioStatus");
+    if (!summary || !status) return;
+    try {
+      const recordings = await getAllAudioRecords();
+      const alphabetLetters = new Set(recordings.filter((record) => record.kind === "alphabet").map((record) => record.letter));
+      const patternLetters = new Set(recordings.filter((record) => record.kind === "pattern").map((record) => record.letter));
+      summary.innerHTML = `
+        <span><b>${alphabetLetters.size}/${alphabet.length}</b> nahrávok Abecedy</span>
+        <span><b>${patternLetters.size}/${alphabet.length}</b> rečových vzorov</span>
+      `;
+      document.querySelectorAll("[data-parent-audio-letter]").forEach((button) => {
+        const letter = button.dataset.parentAudioLetter;
+        const hasAlphabet = alphabetLetters.has(letter);
+        const hasPattern = patternLetters.has(letter);
+        button.classList.toggle("has-alphabet", hasAlphabet);
+        button.classList.toggle("has-pattern", hasPattern);
+        button.setAttribute(
+          "aria-label",
+          `${letter}. Nahrávka Abecedy ${hasAlphabet ? "je uložená" : "chýba"}. Rečový vzor ${hasPattern ? "je uložený" : "chýba"}.`,
+        );
+      });
+      const hasSelectedAlphabet = alphabetLetters.has(parentAudioLetter.letter);
+      const hasSelectedPattern = patternLetters.has(parentAudioLetter.letter);
+      document.getElementById("playParentAlphabetButton").disabled = !hasSelectedAlphabet;
+      document.getElementById("playParentPatternButton").disabled = !hasSelectedPattern;
+      document.getElementById("deleteParentLetterAudioButton").disabled = !hasSelectedAlphabet && !hasSelectedPattern;
+      status.textContent = message || `Vybrané písmeno ${parentAudioLetter.letter}.`;
+      updateParentAudioSelection();
+    } catch (error) {
+      status.textContent = error?.message || "Úložisko nahrávok nie je dostupné.";
+    }
+  }
+
+  function setParentAudioRecordingState(kind, recording) {
+    const alphabetButton = document.getElementById("recordParentAlphabetButton");
+    const patternButton = document.getElementById("recordParentPatternButton");
+    const letterButtons = document.querySelectorAll("[data-parent-audio-letter]");
+    if (!alphabetButton || !patternButton) return;
+    alphabetButton.disabled = recording && kind !== "alphabet";
+    patternButton.disabled = recording && kind !== "pattern";
+    alphabetButton.textContent = recording && kind === "alphabet" ? "ZASTAVIŤ" : "NAHRAŤ";
+    patternButton.textContent = recording && kind === "pattern" ? "ZASTAVIŤ" : "NAHRAŤ";
+    alphabetButton.classList.toggle("recording", recording && kind === "alphabet");
+    patternButton.classList.toggle("recording", recording && kind === "pattern");
+    letterButtons.forEach((button) => {
+      button.disabled = recording;
+    });
+  }
+
+  async function toggleParentAudioRecording(kind) {
+    if (activeRecording) {
+      if (activeRecording.purpose === "parent" && activeRecording.kind === kind) stopAudioRecording();
+      return;
+    }
+    const item = parentAudioLetter;
+    const status = document.getElementById("parentAudioStatus");
+    cancelSpeechPlayback();
+    await startAudioRecording({
+      item,
+      kind,
+      purpose: "parent",
+      onStateChange: (recording) => {
+        setParentAudioRecordingState(kind, recording);
+        if (recording && status) {
+          status.textContent = kind === "alphabet"
+            ? `Nahrávam „${alphabetRecordingPrompt(item)}“...`
+            : `Nahrávam rečový vzor ${item.letter}...`;
+        } else if (status) {
+          status.textContent = "Spracúvam nahrávku...";
+        }
+      },
+      onComplete: async (blob) => {
+        const features = kind === "pattern" ? await extractAudioFeatures(blob) : null;
+        await saveAudioRecord(kind, item, blob, features);
+        sfx("ok");
+        await refreshParentAudioStudio(
+          kind === "alphabet"
+            ? `Nahrávka Abecedy pre ${item.letter} je uložená.`
+            : `Rečový vzor pre ${item.letter} je uložený.`,
+        );
+      },
+      onError: (error) => {
+        setParentAudioRecordingState(kind, false);
+        if (status) status.textContent = error?.message || "Nahrávanie sa nepodarilo.";
+      },
+    });
+  }
+
+  async function playParentAudio(kind) {
+    const status = document.getElementById("parentAudioStatus");
+    const played = await playStoredRecording(kind, parentAudioLetter, false);
+    if (status) status.textContent = played ? "Prehrávam uloženú nahrávku." : "Táto nahrávka ešte chýba.";
+  }
+
+  function bindParentAudioStudio() {
+    document.querySelectorAll("[data-parent-audio-letter]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (activeRecording) return;
+        parentAudioLetter = alphabet.find((item) => item.letter === button.dataset.parentAudioLetter) || alphabet[0];
+        refreshParentAudioStudio();
+      });
+    });
+    document.getElementById("recordParentAlphabetButton").addEventListener("click", () => toggleParentAudioRecording("alphabet"));
+    document.getElementById("recordParentPatternButton").addEventListener("click", () => toggleParentAudioRecording("pattern"));
+    document.getElementById("playParentAlphabetButton").addEventListener("click", () => playParentAudio("alphabet"));
+    document.getElementById("playParentPatternButton").addEventListener("click", () => playParentAudio("pattern"));
+    document.getElementById("deleteParentLetterAudioButton").addEventListener("click", async () => {
+      if (!window.confirm(`Odstrániť obe nahrávky pre písmeno ${parentAudioLetter.letter}?`)) return;
+      await deleteAudioRecordsForLetter(parentAudioLetter.letter);
+      await refreshParentAudioStudio(`Nahrávky pre ${parentAudioLetter.letter} boli odstránené.`);
+    });
+    refreshParentAudioStudio();
   }
 
   function showParentModal(lesson = null) {
@@ -1708,21 +2474,70 @@
             <button class="hold-button" id="holdUnlockButton" type="button">Podržať</button>
           </div>
         </div>
+        <section class="parent-audio-studio" aria-labelledby="parentAudioTitle">
+          <div class="parent-audio-head">
+            <div>
+              <p class="eyebrow">Nahrávky</p>
+              <h3 id="parentAudioTitle">Abeceda a rečové vzory</h3>
+            </div>
+            <div class="parent-audio-summary" id="parentAudioSummary" aria-live="polite"></div>
+          </div>
+          <div class="parent-audio-layout">
+            <div class="parent-audio-letter-grid" aria-label="Písmená pre nahrávanie">
+              ${alphabet
+                .map(
+                  (item) => `
+                    <button
+                      class="parent-audio-letter ${item.letter === parentAudioLetter.letter ? "selected" : ""}"
+                      type="button"
+                      data-parent-audio-letter="${item.letter}"
+                      aria-pressed="${item.letter === parentAudioLetter.letter}"
+                    >
+                      <span>${item.letter}</span>
+                      <span class="audio-letter-indicators" aria-hidden="true"><i></i><i></i></span>
+                    </button>
+                  `,
+                )
+                .join("")}
+            </div>
+            <div class="parent-audio-controls">
+              <div class="parent-audio-selected" id="parentAudioSelectedLetter">${parentAudioLetter.letter}</div>
+              <div class="parent-recording-row">
+                <div>
+                  <strong>Nahrávka Abecedy</strong>
+                  <span id="parentAlphabetPrompt">Nahraj: „${escapeHtml(alphabetRecordingPrompt(parentAudioLetter))}“</span>
+                </div>
+                <div class="parent-recording-actions">
+                  <button class="soft-button" id="playParentAlphabetButton" type="button" disabled>PREHRAŤ</button>
+                  <button class="primary-button" id="recordParentAlphabetButton" type="button">NAHRAŤ</button>
+                </div>
+              </div>
+              <div class="parent-recording-row">
+                <div>
+                  <strong>Rečový vzor</strong>
+                  <span id="parentPatternPrompt">Vyslov iba písmeno „${parentAudioLetter.letter}“.</span>
+                </div>
+                <div class="parent-recording-actions">
+                  <button class="soft-button" id="playParentPatternButton" type="button" disabled>PREHRAŤ</button>
+                  <button class="primary-button" id="recordParentPatternButton" type="button">NAHRAŤ</button>
+                </div>
+              </div>
+              <p class="parent-audio-status" id="parentAudioStatus" role="status" aria-live="polite">Vyber písmeno.</p>
+              <button class="soft-button delete-audio-button" id="deleteParentLetterAudioButton" type="button" disabled>ODSTRÁNIŤ NAHRÁVKY PÍSMENA</button>
+            </div>
+          </div>
+        </section>
         ${resetButton}
       </div>
     `;
     parentModal.classList.add("show");
     parentModal.setAttribute("aria-hidden", "false");
     bindHoldUnlock();
+    bindParentAudioStudio();
     const resetProgressButton = document.getElementById("resetProgressButton");
     if (resetProgressButton) {
       resetProgressButton.addEventListener("click", () => {
-        const profile = currentProfile();
-        profile.completed = [];
-        profile.lights = 0;
-        profile.knownLetters = [];
-        profile.surprisesDone = [];
-        saveState();
+        resetCurrentProfile();
         closeParent();
         setLumi("Profil je vynulovaný.", "skolak", true);
         render();
@@ -1761,22 +2576,24 @@
   }
 
   function closeParent() {
+    cancelAudioRecording("parent");
+    releaseMicrophoneStream();
     parentModal.classList.remove("show");
     parentModal.setAttribute("aria-hidden", "true");
   }
 
-  document.getElementById("homeButton").addEventListener("click", () => setScreen("profile"));
-  document.getElementById("mapButton").addEventListener("click", () => {
-    if (!state.activeProfileId) setScreen("profile");
-    else setScreen("map");
-  });
-  document.getElementById("surpriseButton").addEventListener("click", () => {
-    if (!state.activeProfileId) setScreen("profile");
-    else setScreen("surprise");
-  });
+  document.getElementById("homeButton").addEventListener("click", () => setScreen("home"));
+  profilePill.addEventListener("click", openProfileEditor);
   document.getElementById("alphabetButton").addEventListener("click", openAlphabet);
-  document.getElementById("parentButton").addEventListener("click", () => showParentModal());
   document.getElementById("closeAlphabetButton").addEventListener("click", closeAlphabet);
+  openReflectionButton.addEventListener("click", openAlphabetReflection);
+  document.getElementById("backToAlphabetButton").addEventListener("click", showAlphabetBrowse);
+  document.getElementById("closeAlphabetDetailButton").addEventListener("click", closeAlphabetDetail);
+  alphabetDetailCard.addEventListener("click", () => playAlphabetItem(activeAlphabetDetail));
+  document.getElementById("playLetterReferenceButton").addEventListener("click", () => {
+    playAlphabetItem(selectedReflectionLetter, false);
+  });
+  microphoneButton.addEventListener("click", startPronunciationAssessment);
   document.getElementById("closeParentButton").addEventListener("click", closeParent);
   alphabetModal.addEventListener("click", (event) => {
     if (event.target === alphabetModal) closeAlphabet();
@@ -1798,34 +2615,29 @@
       return;
     }
 
-    const profile = state.profiles.find((item) => item.id === editingProfileId);
-    if (profile) {
-      profile.name = name.slice(0, 24);
-      profile.avatar = selectedProfileAvatar;
-      saveState();
-      closeProfileEditor();
-      setLumi("Profil je upravený.", "ok", true);
-      render();
-      return;
-    }
-
-    const id = `profil_${Date.now()}`;
-    state.profiles.push({
-      id,
-      name: name.slice(0, 24),
-      avatar: selectedProfileAvatar,
-      lights: 0,
-      completed: [],
-      knownLetters: [],
-      surprisesDone: [],
-    });
-    state.activeProfileId = id;
+    const profile = currentProfile();
+    profile.name = name.slice(0, 24);
+    profile.avatar = selectedProfileAvatar;
     saveState();
     closeProfileEditor();
-    setLumi("Profil je pripravený. Začíname prvým krokom.", "ok", true);
-    setScreen("map");
+    setLumi("Profil je upravený.", "ok", true);
+    render();
+  });
+  resetProfileButton.addEventListener("click", () => {
+    resetCurrentProfile();
+    closeProfileEditor();
+    setLumi("Profil je vynulovaný. Začíname od začiatku.", "skolak", true);
+    showToast("Profil a všetky splnené úlohy sú vynulované.");
+    render();
   });
   repeatButton.addEventListener("click", () => {
+    if (lastRecordedAudio) {
+      const item = alphabet.find((entry) => entry.letter === lastRecordedAudio.letter);
+      if (item) {
+        playStoredRecording(lastRecordedAudio.kind, item, true);
+        return;
+      }
+    }
     if (lastSpeechSequence) {
       const { sounds, pausesMs, ending } = lastSpeechSequence;
       speakSoundsWithPause(sounds, pausesMs, ending);

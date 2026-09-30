@@ -4,6 +4,7 @@
   const ALPHABET_CARD_BASE = "assets/alphabet/";
   const TASK_IMAGE_BASE = "assets/tasks/";
   const SYLLABLE_RECORDING_PAUSES_MS = [300, 500];
+  const REMOVED_PROFILE_NAMES = new Set(["emka", "gregi"]);
 
   const poses = {
     hovori: `${POSE_BASE}lumi_hovori.png`,
@@ -449,15 +450,6 @@
           knownLetters: ["A", "B", "M"],
           surprisesDone: [],
         },
-        {
-          id: "emka",
-          name: "Emka",
-          avatar: poses.smeje,
-          lights: 15,
-          completed: [1, 2],
-          knownLetters: ["A"],
-          surprisesDone: [],
-        },
       ],
     };
   }
@@ -468,7 +460,7 @@
       if (!raw) return defaultState();
       const parsed = JSON.parse(raw);
       const defaults = defaultState();
-      const profiles = Array.isArray(parsed.profiles) && parsed.profiles.length
+      const loadedProfiles = Array.isArray(parsed.profiles) && parsed.profiles.length
         ? parsed.profiles.map((profile, index) => ({
             ...profile,
             id: profile.id || `profil_${index + 1}`,
@@ -481,6 +473,10 @@
             surprisesDone: Array.isArray(profile.surprisesDone) ? profile.surprisesDone : [],
           }))
         : defaults.profiles;
+      const filteredProfiles = loadedProfiles.filter(
+        (profile) => !REMOVED_PROFILE_NAMES.has(profile.name.trim().toLocaleLowerCase("sk-SK")),
+      );
+      const profiles = filteredProfiles.length ? filteredProfiles : defaults.profiles;
       const nextState = { ...defaults, ...parsed, profiles };
       if (nextState.activeProfileId && !profiles.some((profile) => profile.id === nextState.activeProfileId)) {
         nextState.activeProfileId = "";

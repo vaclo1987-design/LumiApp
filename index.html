@@ -34,15 +34,19 @@
     <div class="app-shell">
       <header class="topbar" aria-label="Horná lišta aplikácie">
         <button class="brand-button" id="homeButton" type="button" aria-label="Prejsť na výber levelu">
-          <img src="assets/lumi-navigation.png" alt="" />
+          <span class="brand-icon-frame" aria-hidden="true">
+            <img src="assets/icons/lumi-home.png" alt="" />
+          </span>
           <span>
             <strong>Lumi</strong>
-            <small>Svet plný zábavy</small>
+            <small>ŠLABIKÁR</small>
           </span>
         </button>
 
         <section class="topbar-lumi" aria-live="polite">
-          <img id="lumiPose" src="assets/poses/lumi_hovori.png" alt="" />
+          <span class="topbar-lumi-image" aria-hidden="true">
+            <img id="lumiPose" src="assets/icons/lumi-listen-complete-v2.png" alt="" />
+          </span>
           <div class="topbar-lumi-content">
             <p id="lumiLine">Vitaj. Vyber si level a môžeme začať.</p>
             <div class="voice-row">
@@ -66,7 +70,7 @@
 
           <nav class="toolbar" aria-label="Rýchle ovládanie">
             <button class="icon-button" id="alphabetButton" type="button" aria-label="Abeceda">
-              <img class="toolbar-lumi-icon" src="assets/icons/alphabet-lumi.png" alt="" />
+              <img class="toolbar-lumi-icon" src="assets/icons/alphabet-lumi-abc-clean.png" alt="" />
             </button>
           </nav>
         </div>
@@ -99,10 +103,6 @@
 
         <div class="alphabet-reflection hidden" id="alphabetReflectionView">
           <section class="reflection-alphabet" aria-labelledby="reflectionTitle">
-            <button class="soft-button reflection-back" id="backToAlphabetButton" type="button" aria-label="Späť na abecedu s obrázkami">
-              <span aria-hidden="true">←</span>
-              <span>ABECEDA</span>
-            </button>
             <div class="reflection-heading">
               <p class="eyebrow">Reflexia</p>
               <h3 id="reflectionTitle">Čo už viem</h3>
@@ -115,7 +115,9 @@
             <p class="eyebrow">Výslovnosť</p>
             <h3 id="pronunciationTitle">Moje písmeno</h3>
             <div class="pronunciation-letter" id="pronunciationLetter" aria-live="polite">A</div>
-            <button class="soft-button listen-style-button" id="playLetterReferenceButton" type="button">POČÚVAJ VZOR</button>
+            <div class="pronunciation-lumi" aria-hidden="true">
+              <img src="assets/poses/lumi_mikrofon.png" alt="" />
+            </div>
             <div class="pronunciation-score">
               <div class="pronunciation-score-label">
                 <label for="pronunciationScore">Správna výslovnosť</label>

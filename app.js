@@ -3,6 +3,7 @@
   const POSE_BASE = "assets/poses/";
   const ALPHABET_CARD_BASE = "assets/alphabet/";
   const TASK_IMAGE_BASE = "assets/tasks/";
+  const TOPBAR_LUMI_IMAGE = "assets/icons/lumi-listen-complete-v2.png";
   const SYLLABLE_RECORDING_PAUSES_MS = [300, 500];
   const REMOVED_PROFILE_NAMES = new Set(["emka", "gregi"]);
   const AUDIO_DB_NAME = "lumi-alphabet-audio-v1";
@@ -463,6 +464,7 @@
   let microphoneStreamPromise = null;
   let microphoneReleaseRequested = false;
   let activeRecording = null;
+  let recordingStartPending = false;
   let recordedAudioPlayer = null;
   let recordedAudioUrl = "";
   let lastRecordedAudio = null;
@@ -487,6 +489,7 @@
   const alphabetDetailCard = document.getElementById("alphabetDetailCard");
   const alphabetTitle = document.getElementById("alphabetTitle");
   const alphabetEyebrow = document.getElementById("alphabetEyebrow");
+  const closeAlphabetButton = document.getElementById("closeAlphabetButton");
   const openReflectionButton = document.getElementById("openReflectionButton");
   const reflectionLetterGrid = document.getElementById("reflectionLetterGrid");
   const pronunciationLetter = document.getElementById("pronunciationLetter");
@@ -632,7 +635,7 @@
     lastSpeechSequence = null;
     lumiLine.textContent = text;
     currentLumiPose = pose;
-    lumiPose.src = poses[pose] || poses.skolak;
+    lumiPose.src = TOPBAR_LUMI_IMAGE;
     animateLumi(pose, speakNow);
     if (speakNow) speak(text);
   }
@@ -857,25 +860,25 @@
 
   async function ensureMicrophoneStream() {
     const activeStream = microphoneStream?.getAudioTracks().some((track) => track.readyState === "live");
-    if (activeStream) return microphoneStream;
+    if (activeStream) {
+      microphoneReleaseRequested = false;
+      microphoneStream.getAudioTracks().forEach((track) => {
+        track.enabled = true;
+      });
+      return microphoneStream;
+    }
     if (microphoneStreamPromise) return microphoneStreamPromise;
     if (!navigator.mediaDevices?.getUserMedia || !("MediaRecorder" in window)) {
       throw new Error("Mikrofónové nahrávanie nie je v tomto prehliadači dostupné.");
     }
     microphoneReleaseRequested = false;
-    microphoneStreamPromise = navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+    microphoneStreamPromise = navigator.mediaDevices.getUserMedia({ audio: true });
     try {
       microphoneStream = await microphoneStreamPromise;
       if (microphoneReleaseRequested) {
-        microphoneStream.getTracks().forEach((track) => track.stop());
-        microphoneStream = null;
+        microphoneStream.getAudioTracks().forEach((track) => {
+          track.enabled = false;
+        });
         throw new Error("Nahrávanie bolo zrušené.");
       }
       return microphoneStream;
@@ -890,15 +893,24 @@
     microphoneStream = null;
   }
 
+  function pauseMicrophoneStream() {
+    microphoneReleaseRequested = true;
+    microphoneStream?.getAudioTracks().forEach((track) => {
+      track.enabled = false;
+    });
+  }
+
   function supportedRecordingMimeType() {
     return ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"]
       .find((type) => window.MediaRecorder?.isTypeSupported?.(type)) || "";
   }
 
   async function startAudioRecording({ item, kind, purpose, onStateChange, onComplete, onError }) {
-    if (activeRecording) return;
+    if (activeRecording || recordingStartPending) return;
+    recordingStartPending = true;
     try {
       const stream = await ensureMicrophoneStream();
+      if (activeRecording) return;
       const mimeType = supportedRecordingMimeType();
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       const session = {
@@ -919,11 +931,13 @@
       };
       recorder.onerror = () => {
         session.cancelled = true;
+        pauseMicrophoneStream();
         session.onError?.(new Error("Nahrávanie sa prerušilo."));
       };
       recorder.onstop = async () => {
         window.clearTimeout(session.timer);
         if (activeRecording === session) activeRecording = null;
+        pauseMicrophoneStream();
         session.onStateChange?.(false);
         if (session.cancelled) return;
         const blob = new Blob(session.chunks, { type: recorder.mimeType || "audio/webm" });
@@ -937,12 +951,14 @@
           session.onError?.(error);
         }
       };
-      recorder.start(150);
+      recorder.start();
       session.timer = window.setTimeout(() => stopAudioRecording(), MAX_RECORDING_MS);
       session.onStateChange?.(true);
     } catch (error) {
       onStateChange?.(false);
       onError?.(error);
+    } finally {
+      recordingStartPending = false;
     }
   }
 
@@ -1144,6 +1160,7 @@
 
   function renderHome() {
     const profile = currentProfile();
+    const continueLevel = levels.find((level) => levelCompletion(profile, level).percent < 100) || levels[levels.length - 1];
     const levelCards = levels
       .map((level) => {
         const progress = levelCompletion(profile, level);
@@ -1167,13 +1184,16 @@
 
     app.innerHTML = `
       <section class="screen profile-screen home-screen">
-        <div class="hero-stage">
-          <img src="${profile.avatar}" alt="Obrázok profilu ${escapeHtml(profile.name)}" />
-          <div class="hero-copy">
-            <p class="eyebrow">Šlabikár</p>
-            <h1>Vitaj ${escapeHtml(profile.name)}</h1>
-            <p>Vyber si level a pokračuj tam, kde si naposledy skončil.</p>
+        <div class="hero-stage home-hero-stage">
+          <img class="home-side-stars home-side-stars-left" src="assets/home/home-stars-left.png" alt="" aria-hidden="true" />
+          <img class="home-decor-sky" src="assets/home/home-clouds-stars-tall.png" alt="" aria-hidden="true" />
+          <img class="home-decor-scenery" src="assets/home/home-learning-scenery.png" alt="" aria-hidden="true" />
+          <img class="home-main-lumi" src="assets/poses/lumi_mava_home.png" alt="Lumi máva" />
+          <div class="hero-copy home-welcome-cloud">
+            <h1>Ahoj!</h1>
+            <button class="primary-button home-continue-button" id="continueButton" type="button">POKRAČUJ</button>
           </div>
+          <img class="home-side-stars home-side-stars-right" src="assets/home/home-stars-right.png" alt="" aria-hidden="true" />
         </div>
         <div class="home-level-panel">
           <div class="level-list">
@@ -1202,6 +1222,11 @@
         setLumi(`Vybral si ${level.title}.`, "skolak", true);
         setScreen("map");
       });
+    });
+    document.getElementById("continueButton").addEventListener("click", () => {
+      activeLevelId = continueLevel.id;
+      setLumi(`Pokračujeme v leveli ${continueLevel.title}.`, "skolak", true);
+      setScreen("map");
     });
     document.getElementById("surpriseButton").addEventListener("click", () => setScreen("surprise"));
     document.getElementById("parentButton").addEventListener("click", () => showParentModal());
@@ -2068,6 +2093,7 @@
 
   async function playAlphabetItem(item, includeWord = true) {
     if (!item) return;
+    lastRecordedAudio = null;
     const line = includeWord && !item.letterOnly
       ? `${item.letter} ako ${item.word}.`
       : `${item.letter}.`;
@@ -2152,11 +2178,29 @@
     });
   }
 
+  function updatePronunciationScore(score) {
+    const normalizedScore = Math.max(0, Math.min(100, Number(score) || 0));
+    const passed = normalizedScore > 50;
+    pronunciationScore.value = String(normalizedScore);
+    pronunciationScore.style.setProperty("--pronunciation-progress", `${normalizedScore}%`);
+    pronunciationScore.classList.toggle("passed", passed);
+    pronunciationScoreOutput.value = `${normalizedScore} %`;
+    pronunciationScoreOutput.textContent = `${normalizedScore} %`;
+    pronunciationScoreOutput.classList.toggle("passed", passed);
+  }
+
   function resetPronunciationScore(message = "Vyber písmeno a stlač mikrofón.") {
-    pronunciationScore.value = "0";
-    pronunciationScoreOutput.value = "0 %";
-    pronunciationScoreOutput.textContent = "0 %";
+    updatePronunciationScore(0);
     pronunciationStatus.textContent = message;
+  }
+
+  function markReflectionLetterLearned(letter) {
+    const profile = currentProfile();
+    const learnedLetters = new Set(profile.knownLetters || []);
+    if (learnedLetters.has(letter)) return;
+    learnedLetters.add(letter);
+    profile.knownLetters = [...learnedLetters];
+    saveState();
   }
 
   async function selectReflectionLetter(item, playReference = true) {
@@ -2186,17 +2230,21 @@
   }
 
   function renderReflectionAlphabet() {
+    const learnedLetters = new Set(currentProfile().knownLetters || []);
     reflectionLetterGrid.innerHTML = alphabet
       .map(
-        (item) => `
+        (item) => {
+          const learned = learnedLetters.has(item.letter);
+          return `
           <button
-            class="reflection-letter ${item.letter === selectedReflectionLetter.letter ? "selected" : ""}"
+            class="reflection-letter ${learned ? "learned" : ""} ${item.letter === selectedReflectionLetter.letter ? "selected" : ""}"
             type="button"
             data-reflection-letter="${item.letter}"
             aria-pressed="${item.letter === selectedReflectionLetter.letter}"
-            aria-label="Vybrať písmeno ${item.letter}"
+            aria-label="Vybrať písmeno ${item.letter}${learned ? ", naučené" : ""}"
           >${item.letter}</button>
-        `,
+        `;
+        },
       )
       .join("");
     reflectionLetterGrid.querySelectorAll("[data-reflection-letter]").forEach((button) => {
@@ -2252,16 +2300,17 @@
         if (!pattern?.features) throw new Error("Rečový vzor sa nepodarilo načítať.");
         const attemptFeatures = await extractAudioFeatures(blob);
         const score = compareAudioFeatures(pattern.features, attemptFeatures);
-        pronunciationScore.value = String(score);
-        pronunciationScoreOutput.value = `${score} %`;
-        pronunciationScoreOutput.textContent = `${score} %`;
-        if (score >= 80) {
-          pronunciationStatus.textContent = "Výborne. Výslovnosť sa zhoduje so vzorom.";
+        updatePronunciationScore(score);
+        if (score > 50) {
+          markReflectionLetterLearned(assessedItem.letter);
+          const learnedButton = reflectionLetterGrid.querySelector(`[data-reflection-letter="${assessedItem.letter}"]`);
+          learnedButton?.classList.add("learned");
+          learnedButton?.setAttribute("aria-label", `Vybrať písmeno ${assessedItem.letter}, naučené`);
+          pronunciationStatus.textContent = score >= 80
+            ? "Výborne. Výslovnosť sa zhoduje so vzorom."
+            : "Dobre. Písmeno je naučené.";
           sfx("ok");
           setLumi("Výborne. Výslovnosť sa podarila.", "tesi", true);
-        } else if (score >= 58) {
-          pronunciationStatus.textContent = "Takmer. Vypočuj si vzor a skús to ešte raz.";
-          setLumi("Takmer. Skús to ešte raz.", "rozmysla", true);
         } else {
           pronunciationStatus.textContent = "Výslovnosť sa zatiaľ nezhoduje. Vypočuj si vzor znova.";
           setLumi("Vypočuj si vzor a skús to pomaly.", "rozmysla", true);
@@ -2276,13 +2325,15 @@
 
   function showAlphabetBrowse() {
     stopPronunciationAssessment();
-    releaseMicrophoneStream();
+    pauseMicrophoneStream();
+    cancelSpeechPlayback();
     closeAlphabetDetail();
     alphabetBrowseView.classList.remove("hidden");
     alphabetReflectionView.classList.add("hidden");
     openReflectionButton.classList.remove("hidden");
     alphabetEyebrow.textContent = "Nápoveda";
     alphabetTitle.textContent = "Abeceda";
+    closeAlphabetButton.setAttribute("aria-label", "Späť k úlohe");
   }
 
   function openAlphabetReflection() {
@@ -2293,7 +2344,8 @@
     openReflectionButton.classList.add("hidden");
     alphabetEyebrow.textContent = "Reflexia";
     alphabetTitle.textContent = "Čo už viem";
-    document.getElementById("backToAlphabetButton").focus({ preventScroll: true });
+    closeAlphabetButton.setAttribute("aria-label", "Späť na abecedu");
+    closeAlphabetButton.focus({ preventScroll: true });
   }
 
   function openAlphabet() {
@@ -2305,7 +2357,8 @@
 
   function closeAlphabet() {
     stopPronunciationAssessment();
-    releaseMicrophoneStream();
+    pauseMicrophoneStream();
+    cancelSpeechPlayback();
     closeAlphabetDetail();
     alphabetModal.classList.remove("show");
     alphabetModal.setAttribute("aria-hidden", "true");
@@ -2577,7 +2630,8 @@
 
   function closeParent() {
     cancelAudioRecording("parent");
-    releaseMicrophoneStream();
+    pauseMicrophoneStream();
+    stopRecordedAudioPlayback();
     parentModal.classList.remove("show");
     parentModal.setAttribute("aria-hidden", "true");
   }
@@ -2585,14 +2639,16 @@
   document.getElementById("homeButton").addEventListener("click", () => setScreen("home"));
   profilePill.addEventListener("click", openProfileEditor);
   document.getElementById("alphabetButton").addEventListener("click", openAlphabet);
-  document.getElementById("closeAlphabetButton").addEventListener("click", closeAlphabet);
+  closeAlphabetButton.addEventListener("click", () => {
+    if (!alphabetReflectionView.classList.contains("hidden")) {
+      showAlphabetBrowse();
+      return;
+    }
+    closeAlphabet();
+  });
   openReflectionButton.addEventListener("click", openAlphabetReflection);
-  document.getElementById("backToAlphabetButton").addEventListener("click", showAlphabetBrowse);
   document.getElementById("closeAlphabetDetailButton").addEventListener("click", closeAlphabetDetail);
   alphabetDetailCard.addEventListener("click", () => playAlphabetItem(activeAlphabetDetail));
-  document.getElementById("playLetterReferenceButton").addEventListener("click", () => {
-    playAlphabetItem(selectedReflectionLetter, false);
-  });
   microphoneButton.addEventListener("click", startPronunciationAssessment);
   document.getElementById("closeParentButton").addEventListener("click", closeParent);
   alphabetModal.addEventListener("click", (event) => {
@@ -2649,6 +2705,7 @@
     state.volume = Number(volumeRange.value);
     saveState();
   });
+  window.addEventListener("beforeunload", releaseMicrophoneStream);
 
   if (welcomeScreen && enterAppButton) {
     const welcomeDelay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 50 : 4500;

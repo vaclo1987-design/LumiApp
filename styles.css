@@ -990,20 +990,7 @@ button {
 }
 
 .lesson-screen {
-  grid-template-rows: auto 1fr;
-}
-
-.lesson-head {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.94);
-  border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .task-title h1 {
@@ -1016,9 +1003,6 @@ button {
 }
 
 .lesson-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 340px);
-  gap: 12px;
   min-height: 0;
 }
 
@@ -1026,6 +1010,27 @@ button {
   min-height: 0;
   padding: 16px;
   overflow: auto;
+}
+
+.lesson-workspace {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 16px;
+}
+
+.lesson-workspace-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid rgba(19, 124, 244, 0.14);
+}
+
+.lesson-task-content {
+  min-height: 0;
 }
 
 .task-card h2 {
@@ -2554,7 +2559,6 @@ button {
   }
 
   .profile-screen,
-  .lesson-body,
   .hero-stage {
     grid-template-columns: 1fr;
   }
@@ -2593,6 +2597,14 @@ button {
 }
 
 @media (max-width: 720px) {
+  .lesson-workspace-head {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-workspace-head .soft-button {
+    justify-self: start;
+  }
+
   .app-shell {
     padding: 8px;
   }

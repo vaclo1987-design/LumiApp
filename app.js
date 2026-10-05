@@ -1359,67 +1359,30 @@
       setScreen("map");
       return;
     }
-    const profile = currentProfile();
     const level = levelForLesson(lesson);
     const levelLessons = lessonsForLevel(level);
     const lessonIndex = levelLessons.findIndex((item) => item.order === lesson.order);
-    const progress = levelCompletion(profile, level);
     activeLevelId = level.id;
     app.innerHTML = `
       <section class="screen lesson-screen">
-        <div class="lesson-head">
-          <button class="soft-button" id="backToMapButton" type="button">Cvičenia</button>
-          <div class="task-title">
-            <p class="eyebrow">Level ${level.number} · Cvičenie ${lessonIndex + 1} / ${levelLessons.length}</p>
-            <h1>${escapeHtml(lesson.title)}</h1>
-            <p>${escapeHtml(lesson.skill)}</p>
-          </div>
-          <button class="primary-button" id="lessonRepeatButton" type="button">Pokyn</button>
-        </div>
         <div class="lesson-body">
-          <section class="task-card" id="taskMount"></section>
-          <aside class="side-card">
-            <div class="reward-box">
-              <strong>${escapeHtml(profile.name)}</strong>
-              <span>${progress.completed} / ${progress.total} úloh v tomto leveli</span>
-              <div class="progress-track" style="--value:${progress.percent}%"><span></span></div>
-            </div>
-            <div class="reward-box">
-              <strong>Svetelná sila</strong>
-              <span>${profile.lights} ${lightWord(profile.lights)} · pozadie svieti na ${profileLightPercent(profile)} %</span>
-              <div class="light-track" style="--value:${profileLightPercent(profile)}%"><span></span></div>
-            </div>
-            <div class="reward-box">
-              <strong>Nápoveda</strong>
-              <span>Písmeno si môžeš pozrieť kedykoľvek.</span>
-              <button class="soft-button" id="sideAlphabetButton" type="button">Abeceda</button>
-              <div class="hint-list">${miniHints()}</div>
-            </div>
-          </aside>
+          <section class="task-card lesson-workspace">
+            <header class="lesson-workspace-head">
+              <button class="soft-button" id="backToMapButton" type="button">Cvičenia</button>
+              <div class="task-title">
+                <p class="eyebrow">Level ${level.number} · Cvičenie ${lessonIndex + 1} / ${levelLessons.length}</p>
+                <h1>${escapeHtml(lesson.title)}</h1>
+                <p>${escapeHtml(lesson.skill)}</p>
+              </div>
+            </header>
+            <div class="lesson-task-content" id="taskMount"></div>
+          </section>
         </div>
       </section>
     `;
 
     document.getElementById("backToMapButton").addEventListener("click", () => setScreen("map"));
-    document.getElementById("lessonRepeatButton").addEventListener("click", () => {
-      setLumi(lesson.intro, lesson.pose, true);
-    });
-    document.getElementById("sideAlphabetButton").addEventListener("click", openAlphabet);
     renderTask(lesson);
-  }
-
-  function miniHints() {
-    return alphabet
-      .filter((item) => ["A", "B", "C", "M", "S", "O"].includes(item.letter))
-      .map(
-        (item) => `
-          <div class="hint-mini">
-            ${item.card || item.image ? `<img src="${item.card || item.image}" alt="" />` : `<span>${item.emoji || item.letter}</span>`}
-            <span>${item.letter} ako ${escapeHtml(item.word)}</span>
-          </div>
-        `,
-      )
-      .join("");
   }
 
   function objectMarkup(id) {

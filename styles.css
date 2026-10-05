@@ -1269,7 +1269,7 @@ button {
 }
 
 .alphabet-card-scene.compact-card-scene {
-  grid-template-columns: repeat(auto-fit, minmax(88px, 140px));
+  grid-template-columns: repeat(auto-fit, minmax(132px, 210px));
   align-items: start;
   justify-content: center;
   min-height: 0;

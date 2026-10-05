@@ -1447,7 +1447,6 @@
     const items = lesson.shuffleItems ? shuffled(lesson.items) : lesson.items;
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="scene task-options ${lesson.alphabetCards ? "alphabet-card-scene" : ""} ${lesson.compactCards ? "compact-card-scene" : ""}">
           ${items
             .map((id) => {
@@ -1480,7 +1479,6 @@
   function renderSelectOne(mount, lesson) {
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="task-visual" aria-hidden="true">
           ${lesson.visualImage ? `<img src="${lesson.visualImage}" alt="" />` : `<span class="picture">${lesson.visual || ""}</span>`}
         </div>
@@ -1524,7 +1522,6 @@
     let matched = 0;
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="memory-grid task-options">
           ${deck.map((card) => `<button class="memory-card" type="button" data-card="${card.index}" aria-label="Zakrytá karta"><span class="face"><img src="${poses.spi}" alt="" /></span></button>`).join("")}
         </div>
@@ -1569,7 +1566,6 @@
   function renderOddOneOut(mount, lesson) {
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="choice-grid task-options">
           ${lesson.choices
             .map(
@@ -1590,7 +1586,6 @@
   function renderPatternComplete(mount, lesson) {
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="pattern-row">
           ${lesson.sequence.map((item) => `<div class="choice-button">${item}</div>`).join("")}
         </div>
@@ -1606,7 +1601,6 @@
     const object = objectBank[lesson.object];
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="object-card">${objectMarkup(lesson.object)}</div>
         <div class="secondary-row">
           <button class="primary-button" id="sayWordButton" type="button">${lesson.type === "SilentPhonemeStart" ? "V hlave" : "Počúvaj"}</button>
@@ -1645,7 +1639,6 @@
     const chosen = new Set();
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="object-grid task-options">
           ${lesson.items.map((id) => `<button class="object-card" type="button" data-object="${id}">${objectMarkup(id)}</button>`).join("")}
         </div>
@@ -1672,7 +1665,6 @@
     alphabetGoal = { lesson, letter: lesson.target };
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="choice-button"><span class="picture">${lesson.target}</span></div>
         <div class="task-options">
           <button class="primary-button" id="hintAlphabetButton" type="button">Abeceda</button>
@@ -1687,7 +1679,6 @@
     const matched = new Set();
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="task-options match-options">
           <div class="letter-choice-grid">
             ${lesson.pairs.map((pair) => `<button class="choice-button" type="button" data-pick-letter="${pair.letter}">${pair.letter}</button>`).join("")}
@@ -1725,7 +1716,6 @@
   function renderReverseHint(mount, lesson) {
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="choice-button"><span class="picture">${lesson.letter}</span></div>
         <div class="object-grid task-options">
           ${lesson.items.map((id) => `<button class="object-card" type="button" data-object="${id}">${objectMarkup(id)}</button>`).join("")}
@@ -1752,7 +1742,6 @@
     const selected = new Set(profile.knownLetters || []);
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="letter-choice-grid task-options">
           ${lesson.letters
             .map((letter) => {
@@ -1793,7 +1782,6 @@
   function renderBlend(mount, lesson) {
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="secondary-row">
           <button class="primary-button" id="playSoundsButton" type="button">Počúvaj</button>
           <button class="soft-button" type="button" id="openAlphabetBlend">Abeceda</button>
@@ -1828,7 +1816,6 @@
     let built = "";
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="choice-button" id="builtSyllable"><span class="picture">?</span></div>
         <div class="letter-choice-grid task-options">
           ${lesson.letters.map((letter) => `<button class="choice-button" type="button" data-letter-card="${letter}">${letter}</button>`).join("")}
@@ -1865,7 +1852,6 @@
     const done = new Set();
     mount.innerHTML = `
       <div class="task-board">
-        <h2>${escapeHtml(lesson.prompt)}</h2>
         <div class="checkpoint-grid task-options">
           ${lesson.checks
             .map(

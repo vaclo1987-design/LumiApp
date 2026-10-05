@@ -579,22 +579,34 @@ button {
 }
 
 .level-card {
+  --level-accent: #8692a5;
+  --level-soft: #f1f4f7;
   width: 100%;
   min-height: 112px;
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) 24px;
+  grid-template-columns: 66px minmax(0, 1fr) 24px;
   align-items: center;
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--line);
   border-left: 6px solid var(--level-accent);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.92);
+  background: linear-gradient(110deg, var(--level-soft), rgba(255, 255, 255, 0.96) 58%);
   box-shadow: 0 9px 24px rgba(17, 41, 74, 0.1);
   color: var(--ink);
   text-align: left;
   cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.level-card-in-progress {
+  --level-accent: #efa91d;
+  --level-soft: #fff1c9;
+}
+
+.level-card-complete {
+  --level-accent: #24b979;
+  --level-soft: #dcf7e9;
 }
 
 .level-card:hover,
@@ -608,15 +620,47 @@ button {
   outline-offset: 2px;
 }
 
+.level-marker {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  display: grid;
+  place-items: center;
+}
+
+.level-picture {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  font-size: 37px;
+  line-height: 1;
+  filter: drop-shadow(0 3px 4px rgba(42, 56, 86, 0.13));
+}
+
+.level-picture-letter {
+  color: #17213a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 49px;
+  font-weight: 900;
+  text-shadow: 0 2px 0 #fff, 0 4px 6px rgba(42, 56, 86, 0.18);
+}
+
 .level-number {
-  width: 42px;
-  height: 42px;
+  position: absolute;
+  left: -2px;
+  bottom: -1px;
+  width: 25px;
+  height: 25px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--level-accent) 14%, white);
-  color: var(--level-accent);
-  font-size: 20px;
+  border: 2px solid #fff;
+  background: var(--level-accent);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(28, 43, 70, 0.18);
+  font-size: 13px;
   font-weight: 900;
 }
 
@@ -647,7 +691,7 @@ button {
 }
 
 .level-progress-meta b {
-  color: var(--ink);
+  color: var(--level-accent);
 }
 
 .level-slider {
@@ -656,13 +700,13 @@ button {
   overflow: hidden;
   border: 0;
   border-radius: 999px;
-  background: #e4edf8;
+  background: color-mix(in srgb, var(--level-accent) 15%, #edf1f6);
   appearance: none;
 }
 
 .level-slider::-webkit-progress-bar {
   border-radius: 999px;
-  background: #e4edf8;
+  background: color-mix(in srgb, var(--level-accent) 15%, #edf1f6);
 }
 
 .level-slider::-webkit-progress-value {
@@ -2019,7 +2063,7 @@ button {
 
 .letter-tile.has-card {
   min-height: 0;
-  aspect-ratio: 7 / 10;
+  aspect-ratio: 2 / 3;
   padding: 4px;
   background: #fff;
 }
@@ -2836,13 +2880,23 @@ button {
   }
 
   .level-card {
-    grid-template-columns: 40px minmax(0, 1fr) 18px;
+    grid-template-columns: 54px minmax(0, 1fr) 18px;
     gap: 9px;
     padding: 10px;
   }
 
-  .level-number {
-    width: 38px;
-    height: 38px;
+  .level-marker {
+    width: 50px;
+    height: 54px;
+  }
+
+  .level-picture {
+    width: 48px;
+    height: 48px;
+    font-size: 33px;
+  }
+
+  .level-picture-letter {
+    font-size: 43px;
   }
 }

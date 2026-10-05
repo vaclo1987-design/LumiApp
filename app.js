@@ -9,6 +9,7 @@
   const AUDIO_DB_NAME = "lumi-alphabet-audio-v1";
   const AUDIO_STORE_NAME = "recordings";
   const MAX_RECORDING_MS = 4500;
+  const PRONUNCIATION_PASS_SCORE = 60;
 
   const poses = {
     hovori: `${POSE_BASE}lumi_hovori.png`,
@@ -63,41 +64,42 @@
   };
 
   const alphabet = [
-    { letter: "A", word: "autobus", card: `${ALPHABET_CARD_BASE}a-autobus.jpg`, active: true },
-    { letter: "B", word: "banán", card: `${ALPHABET_CARD_BASE}b-banan.jpg`, active: true },
-    { letter: "C", word: "ceruzka", card: `${ALPHABET_CARD_BASE}c-ceruzka.jpg`, active: true },
-    { letter: "Č", word: "čokoláda", card: `${ALPHABET_CARD_BASE}c-makcen-cokolada.jpg`, active: false },
-    { letter: "D", word: "dúha", card: `${ALPHABET_CARD_BASE}d-duha.jpg`, active: true },
-    { letter: "Ď", word: "ďateľ", card: `${ALPHABET_CARD_BASE}d-makke-datel.jpg`, active: false },
-    { letter: "DZ", word: "", letterOnly: true, active: false },
-    { letter: "DŽ", word: "džús", card: `${ALPHABET_CARD_BASE}dz-makcen-dzus.jpg`, active: false },
-    { letter: "E", word: "električka", card: `${ALPHABET_CARD_BASE}e-elektricka.jpg`, active: true },
-    { letter: "F", word: "futbal", card: `${ALPHABET_CARD_BASE}f-futbal.jpg`, active: false },
-    { letter: "G", word: "gaštan", card: `${ALPHABET_CARD_BASE}g-gastan.jpg`, active: false },
-    { letter: "H", word: "had", card: `${ALPHABET_CARD_BASE}h-had.jpg`, active: false },
-    { letter: "CH", word: "chrúst", card: `${ALPHABET_CARD_BASE}ch-chrust.jpg`, active: false },
-    { letter: "I", word: "indián", card: `${ALPHABET_CARD_BASE}i-indian.jpg`, active: false },
-    { letter: "J", word: "jablko", card: `${ALPHABET_CARD_BASE}j-jablko.jpg`, active: false },
-    { letter: "K", word: "kôň", card: `${ALPHABET_CARD_BASE}k-kon.jpg`, active: true },
-    { letter: "L", word: "lano", card: `${ALPHABET_CARD_BASE}l-lano.jpg`, active: true },
-    { letter: "Ľ", word: "ľad", card: `${ALPHABET_CARD_BASE}l-makke-lad.jpg`, active: false },
-    { letter: "M", word: "motýľ", card: `${ALPHABET_CARD_BASE}m-motyl.jpg`, active: true },
-    { letter: "N", word: "nôž", card: `${ALPHABET_CARD_BASE}n-noz.jpg`, active: false },
-    { letter: "Ň", word: "ňufák", card: `${ALPHABET_CARD_BASE}n-makke-nufak.jpg`, active: false },
-    { letter: "O", word: "oko", card: `${ALPHABET_CARD_BASE}o-oko.jpg`, active: true },
-    { letter: "P", word: "pes", card: `${ALPHABET_CARD_BASE}p-pes.jpg`, active: true },
-    { letter: "R", word: "rak", card: `${ALPHABET_CARD_BASE}r-rak.jpg`, active: true },
-    { letter: "S", word: "sova", card: `${ALPHABET_CARD_BASE}s-sova.jpg`, active: true },
-    { letter: "Š", word: "šiška", card: `${ALPHABET_CARD_BASE}s-makcen-siska.jpg`, active: true },
-    { letter: "T", word: "televízor", card: `${ALPHABET_CARD_BASE}t-televizor.jpg`, active: true },
-    { letter: "Ť", word: "ťava", card: `${ALPHABET_CARD_BASE}t-makke-tava.jpg`, active: false },
-    { letter: "U", word: "ucho", card: `${ALPHABET_CARD_BASE}u-ucho.jpg`, active: true },
-    { letter: "V", word: "vedro", card: `${ALPHABET_CARD_BASE}v-vedro.jpg`, active: true },
-    { letter: "W", word: "wifi", card: `${ALPHABET_CARD_BASE}w-wifi.jpg`, active: false },
-    { letter: "X", word: "xylofón", card: `${ALPHABET_CARD_BASE}x-xylofon.jpg`, active: false },
-    { letter: "Y", word: "ypsilon", card: `${ALPHABET_CARD_BASE}y-ypsilon.jpg`, active: false },
-    { letter: "Z", word: "zajac", card: `${ALPHABET_CARD_BASE}z-zajac.jpg`, active: false },
-    { letter: "Ž", word: "žaba", card: `${ALPHABET_CARD_BASE}z-makcen-zaba.jpg`, active: false },
+    { letter: "A", word: "ananás", card: `${ALPHABET_CARD_BASE}card-a.jpg`, active: true },
+    { letter: "B", word: "balón", card: `${ALPHABET_CARD_BASE}card-b.jpg`, active: true },
+    { letter: "C", word: "citrón", card: `${ALPHABET_CARD_BASE}card-c.jpg`, active: true },
+    { letter: "Č", word: "čokoláda", card: `${ALPHABET_CARD_BASE}card-c-makcen.jpg`, active: true },
+    { letter: "D", word: "dom", card: `${ALPHABET_CARD_BASE}card-d.jpg`, active: true },
+    { letter: "Ď", word: "ďateľ", card: `${ALPHABET_CARD_BASE}card-d-makke.jpg`, active: true },
+    { letter: "DZ", word: "hrdza", card: `${ALPHABET_CARD_BASE}card-dz.jpg`, active: true },
+    { letter: "DŽ", word: "džús", card: `${ALPHABET_CARD_BASE}card-dz-makcen.jpg`, active: true },
+    { letter: "E", word: "električka", card: `${ALPHABET_CARD_BASE}card-e.jpg`, active: true },
+    { letter: "F", word: "fúrik", card: `${ALPHABET_CARD_BASE}card-f.jpg`, active: true },
+    { letter: "G", word: "gombík", card: `${ALPHABET_CARD_BASE}card-g.jpg`, active: true },
+    { letter: "H", word: "hojdačka", card: `${ALPHABET_CARD_BASE}card-h.jpg`, active: true },
+    { letter: "CH", word: "chobotnica", card: `${ALPHABET_CARD_BASE}card-ch.jpg`, active: true },
+    { letter: "I", word: "ihla", card: `${ALPHABET_CARD_BASE}card-i.jpg`, active: true },
+    { letter: "J", word: "jahoda", card: `${ALPHABET_CARD_BASE}card-j.jpg`, active: true },
+    { letter: "K", word: "kolotoč", card: `${ALPHABET_CARD_BASE}card-k.jpg`, active: true },
+    { letter: "L", word: "lampa", card: `${ALPHABET_CARD_BASE}card-l.jpg`, active: true },
+    { letter: "Ľ", word: "ľad", card: `${ALPHABET_CARD_BASE}card-l-makke.jpg`, active: true },
+    { letter: "M", word: "most", card: `${ALPHABET_CARD_BASE}card-m.jpg`, active: true },
+    { letter: "N", word: "nanuk", card: `${ALPHABET_CARD_BASE}card-n.jpg`, active: true },
+    { letter: "Ň", word: "ňufák", card: `${ALPHABET_CARD_BASE}card-n-makke.jpg`, active: true },
+    { letter: "O", word: "oko", card: `${ALPHABET_CARD_BASE}card-o.jpg`, active: true },
+    { letter: "P", word: "papagáj", card: `${ALPHABET_CARD_BASE}card-p.jpg`, active: true },
+    { letter: "Q", word: "", card: `${ALPHABET_CARD_BASE}card-q.jpg`, letterOnly: true, active: true },
+    { letter: "R", word: "raketa", card: `${ALPHABET_CARD_BASE}card-r.jpg`, active: true },
+    { letter: "S", word: "slimák", card: `${ALPHABET_CARD_BASE}card-s.jpg`, active: true },
+    { letter: "Š", word: "šašo", card: `${ALPHABET_CARD_BASE}card-s-makcen.jpg`, active: true },
+    { letter: "T", word: "televízor", card: `${ALPHABET_CARD_BASE}card-t.jpg`, active: true },
+    { letter: "Ť", word: "ťava", card: `${ALPHABET_CARD_BASE}card-t-makke.jpg`, active: true },
+    { letter: "U", word: "umývadlo", card: `${ALPHABET_CARD_BASE}card-u.jpg`, active: true },
+    { letter: "V", word: "vrana", card: `${ALPHABET_CARD_BASE}card-v.jpg`, active: true },
+    { letter: "W", word: "web", card: `${ALPHABET_CARD_BASE}card-w.jpg`, active: true },
+    { letter: "X", word: "xylofón", card: `${ALPHABET_CARD_BASE}card-x.jpg`, active: true },
+    { letter: "Y", word: "yety", card: `${ALPHABET_CARD_BASE}card-y.jpg`, active: true },
+    { letter: "Z", word: "zips", card: `${ALPHABET_CARD_BASE}card-z.jpg`, active: true },
+    { letter: "Ž", word: "žaba", card: `${ALPHABET_CARD_BASE}card-z-makcen.jpg`, active: true },
   ];
 
   const lessons = [
@@ -391,7 +393,8 @@
       title: "Prípravné obdobie",
       subtitle: "Svet plný zábavy",
       lessonOrders: [1, 2, 3, 4, 5],
-      accent: "#137cf4",
+      icon: "🌳",
+      iconLabel: "Spoznávame sa",
     },
     {
       id: "slabikar-1",
@@ -399,7 +402,8 @@
       title: "Šlabikárové obdobie 1",
       subtitle: "Prvé zvuky a písmená",
       lessonOrders: [6, 7, 8, 9, 10],
-      accent: "#2bbf88",
+      icon: "🎨",
+      iconLabel: "Opisujeme",
     },
     {
       id: "slabikar-2",
@@ -407,7 +411,8 @@
       title: "Šlabikárové obdobie 2",
       subtitle: "Písmená, obrázky a nápovedy",
       lessonOrders: [11, 12, 13, 14, 15],
-      accent: "#f0ae24",
+      icon: "👂",
+      iconLabel: "Trénujeme ušká",
     },
     {
       id: "slabikar-3",
@@ -415,7 +420,8 @@
       title: "Šlabikárové obdobie 3",
       subtitle: "Slabiky a záverečné precvičenie",
       lessonOrders: [16, 17, 18, 19, 20],
-      accent: "#725ce6",
+      icon: "A",
+      iconLabel: "Objavujeme písmená",
     },
   ];
 
@@ -522,6 +528,7 @@
           lights: 42,
           completed: [1, 2, 3, 4, 5],
           knownLetters: ["A", "B", "M"],
+          pronunciationLetters: [],
           surprisesDone: [],
         },
       ],
@@ -544,6 +551,7 @@
             lights: Number(profile.lights ?? profile.coins) || 0,
             completed: Array.isArray(profile.completed) ? profile.completed : [],
             knownLetters: Array.isArray(profile.knownLetters) ? profile.knownLetters : [],
+            pronunciationLetters: Array.isArray(profile.pronunciationLetters) ? profile.pronunciationLetters : [],
             surprisesDone: Array.isArray(profile.surprisesDone) ? profile.surprisesDone : [],
           }))
         : defaults.profiles;
@@ -590,6 +598,7 @@
     profile.completed = [];
     profile.lights = 0;
     profile.knownLetters = [];
+    profile.pronunciationLetters = [];
     profile.surprisesDone = [];
     saveState();
   }
@@ -764,6 +773,12 @@
     return `${kind}:${letter}`;
   }
 
+  function isCurrentAlphabetRecording(record) {
+    if (record?.kind !== "alphabet") return true;
+    const item = alphabet.find((entry) => entry.letter === record.letter);
+    return Boolean(item) && String(record.word || "") === String(item.word || "");
+  }
+
   async function getAudioRecord(kind, letter) {
     const database = await openAudioDatabase();
     return new Promise((resolve, reject) => {
@@ -849,7 +864,7 @@
   async function playStoredRecording(kind, item, remember = false) {
     try {
       const record = await getAudioRecord(kind, item.letter);
-      if (!record?.blob) return false;
+      if (!record?.blob || !isCurrentAlphabetRecording(record)) return false;
       if (remember) lastRecordedAudio = { kind, letter: item.letter };
       await playAudioBlob(record.blob);
       return true;
@@ -1164,9 +1179,17 @@
     const levelCards = levels
       .map((level) => {
         const progress = levelCompletion(profile, level);
+        const status = progress.completed === progress.total
+          ? "complete"
+          : progress.completed > 0
+            ? "in-progress"
+            : "unopened";
         return `
-          <button class="level-card" type="button" data-level="${level.id}" style="--level-accent:${level.accent}">
-            <span class="level-number">${level.number}</span>
+          <button class="level-card level-card-${status}" type="button" data-level="${level.id}">
+            <span class="level-marker" aria-label="${escapeHtml(level.iconLabel)}">
+              <span class="level-picture ${level.icon === "A" ? "level-picture-letter" : ""}" aria-hidden="true">${level.icon}</span>
+              <span class="level-number" aria-label="Level ${level.number}">${level.number}</span>
+            </span>
             <span class="level-card-copy">
               <strong>${escapeHtml(level.title)}</strong>
               <small>${escapeHtml(level.subtitle)}</small>
@@ -2180,7 +2203,7 @@
 
   function updatePronunciationScore(score) {
     const normalizedScore = Math.max(0, Math.min(100, Number(score) || 0));
-    const passed = normalizedScore > 50;
+    const passed = normalizedScore >= PRONUNCIATION_PASS_SCORE;
     pronunciationScore.value = String(normalizedScore);
     pronunciationScore.style.setProperty("--pronunciation-progress", `${normalizedScore}%`);
     pronunciationScore.classList.toggle("passed", passed);
@@ -2196,14 +2219,14 @@
 
   function markReflectionLetterLearned(letter) {
     const profile = currentProfile();
-    const learnedLetters = new Set(profile.knownLetters || []);
+    const learnedLetters = new Set(profile.pronunciationLetters || []);
     if (learnedLetters.has(letter)) return;
     learnedLetters.add(letter);
-    profile.knownLetters = [...learnedLetters];
+    profile.pronunciationLetters = [...learnedLetters];
     saveState();
   }
 
-  async function selectReflectionLetter(item, playReference = true) {
+  async function selectReflectionLetter(item) {
     if (!item || pronunciationListening) return;
     selectedReflectionLetter = item;
     pronunciationLetter.textContent = item.letter;
@@ -2214,23 +2237,22 @@
     });
     selectedPatternAvailable = false;
     microphoneButton.disabled = true;
-    resetPronunciationScore(`Kontrolujem rečový vzor pre písmeno ${item.letter}...`);
+    resetPronunciationScore(`Pripravujem hodnotenie písmena ${item.letter}...`);
     try {
       const pattern = await getAudioRecord("pattern", item.letter);
       if (selectedReflectionLetter !== item) return;
       selectedPatternAvailable = Boolean(pattern?.blob && pattern?.features);
       microphoneButton.disabled = !selectedPatternAvailable;
       pronunciationStatus.textContent = selectedPatternAvailable
-        ? `Rečový vzor pre ${item.letter} je pripravený.`
+        ? `Písmeno ${item.letter} je pripravené na hodnotenie.`
         : `Pre písmeno ${item.letter} ešte chýba rečový vzor v rodičovskej zóne.`;
     } catch {
       pronunciationStatus.textContent = "Uložené rečové vzory sa nepodarilo načítať.";
     }
-    if (playReference) playAlphabetItem(item, false);
   }
 
   function renderReflectionAlphabet() {
-    const learnedLetters = new Set(currentProfile().knownLetters || []);
+    const learnedLetters = new Set(currentProfile().pronunciationLetters || []);
     reflectionLetterGrid.innerHTML = alphabet
       .map(
         (item) => {
@@ -2252,7 +2274,7 @@
         selectReflectionLetter(alphabet.find((item) => item.letter === button.dataset.reflectionLetter));
       });
     });
-    selectReflectionLetter(selectedReflectionLetter, false);
+    selectReflectionLetter(selectedReflectionLetter);
   }
 
   function setMicrophoneState(listening) {
@@ -2301,7 +2323,7 @@
         const attemptFeatures = await extractAudioFeatures(blob);
         const score = compareAudioFeatures(pattern.features, attemptFeatures);
         updatePronunciationScore(score);
-        if (score > 50) {
+        if (score >= PRONUNCIATION_PASS_SCORE) {
           markReflectionLetterLearned(assessedItem.letter);
           const learnedButton = reflectionLetterGrid.querySelector(`[data-reflection-letter="${assessedItem.letter}"]`);
           learnedButton?.classList.add("learned");
@@ -2312,8 +2334,8 @@
           sfx("ok");
           setLumi("Výborne. Výslovnosť sa podarila.", "tesi", true);
         } else {
-          pronunciationStatus.textContent = "Výslovnosť sa zatiaľ nezhoduje. Vypočuj si vzor znova.";
-          setLumi("Vypočuj si vzor a skús to pomaly.", "rozmysla", true);
+          pronunciationStatus.textContent = "Výslovnosť sa zatiaľ nezhoduje. Skús písmeno vysloviť ešte raz.";
+          setLumi("Skús písmeno vysloviť ešte raz.", "rozmysla", true);
         }
       },
       onError: (error) => {
@@ -2389,7 +2411,11 @@
     if (!summary || !status) return;
     try {
       const recordings = await getAllAudioRecords();
-      const alphabetLetters = new Set(recordings.filter((record) => record.kind === "alphabet").map((record) => record.letter));
+      const alphabetLetters = new Set(
+        recordings
+          .filter((record) => record.kind === "alphabet" && isCurrentAlphabetRecording(record))
+          .map((record) => record.letter),
+      );
       const patternLetters = new Set(recordings.filter((record) => record.kind === "pattern").map((record) => record.letter));
       summary.innerHTML = `
         <span><b>${alphabetLetters.size}/${alphabet.length}</b> nahrávok Abecedy</span>

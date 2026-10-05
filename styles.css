@@ -906,7 +906,8 @@ button {
 .progress-track {
   height: 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
+  background: #d7dbe4;
+  box-shadow: inset 0 0 0 1px rgba(83, 94, 114, 0.16);
   overflow: hidden;
 }
 
@@ -1265,6 +1266,13 @@ button {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.alphabet-card-scene.compact-card-scene {
+  grid-template-columns: repeat(auto-fit, minmax(88px, 140px));
+  align-items: start;
+  justify-content: center;
+  min-height: 0;
 }
 
 .memory-card,

@@ -116,6 +116,8 @@
       items: ["autobus", "banan", "ceruzka", "duha", "elektricka", "futbal"],
       targets: ["autobus", "banan", "ceruzka"],
       alphabetCards: true,
+      compactCards: true,
+      shuffleItems: true,
     },
     {
       order: 2,
@@ -637,6 +639,15 @@
 
   function sample(list) {
     return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function shuffled(list) {
+    const result = [...list];
+    for (let index = result.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [result[index], result[randomIndex]] = [result[randomIndex], result[index]];
+    }
+    return result;
   }
 
   function setLumi(text, pose = "skolak", speakNow = false) {
@@ -1368,7 +1379,7 @@
         <div class="lesson-body">
           <section class="task-card lesson-workspace">
             <header class="lesson-workspace-head">
-              <button class="soft-button" id="backToMapButton" type="button">Cvičenia</button>
+              <button class="soft-button listen-style-button" id="backToMapButton" type="button">Cvičenia</button>
               <div class="task-title">
                 <p class="eyebrow">Level ${level.number} · Cvičenie ${lessonIndex + 1} / ${levelLessons.length}</p>
                 <h1>${escapeHtml(lesson.title)}</h1>
@@ -1433,11 +1444,12 @@
 
   function renderTapHotspot(mount, lesson) {
     const found = new Set();
+    const items = lesson.shuffleItems ? shuffled(lesson.items) : lesson.items;
     mount.innerHTML = `
       <div class="task-board">
         <h2>${escapeHtml(lesson.prompt)}</h2>
-        <div class="scene task-options ${lesson.alphabetCards ? "alphabet-card-scene" : ""}">
-          ${lesson.items
+        <div class="scene task-options ${lesson.alphabetCards ? "alphabet-card-scene" : ""} ${lesson.compactCards ? "compact-card-scene" : ""}">
+          ${items
             .map((id) => {
               const object = objectBank[id];
               const label = object ? `${object.letter} ako ${object.label}` : id;
@@ -1969,7 +1981,7 @@
             <h1>Lumikové prekvapenia</h1>
             <p>Odkry okienko a splň jednu krátku úlohu.</p>
           </div>
-          <button class="soft-button" id="surpriseMapButton" type="button">Levely</button>
+          <button class="soft-button listen-style-button" id="surpriseMapButton" type="button">Levely</button>
         </div>
         <div class="lesson-body">
           <section class="task-card">
